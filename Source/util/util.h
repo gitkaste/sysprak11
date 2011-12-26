@@ -25,4 +25,8 @@ void flushBuf(struct buffer *buf);
 void freeBuf(struct buffer *buf);
 
 
+ssize t writeWrapper (int fd, const void *buf, size t count);
+ssize t readToBuf (int fd, struct buffer *buf);
+ssize t writeBuf (int fd, struct buffer *buf);
+
 #endif
