@@ -1,0 +1,100 @@
+int getTokenFromStream(int fd, struct buffer *buf, struct buffer *token, ...) {
+	va_list ap, ap_copy;
+	int r, t, retval = 1;
+	int ts, tl, fl;
+	
+	struct pollfd pollfds[1];
+	int pollret;
+	
+	
+	pollfds[0].fd = fd;
+	pollfds[0].events = POLLIN;
+	
+	
+	
+	va_start(ap, token);
+	
+	
+	while(1) {
+		va_copy(ap_copy, ap);
+		t = searchToken(&ts, &tl, &fl, buf, ap_copy);
+		va_end(ap_copy);
+		
+		
+		if(t == 1) break;
+		
+		/* there won't be a token in this buffer anymore as it's full */
+		if(buf->buflen >= buf->bufmax) {
+			retval = -1;
+			break;
+		}
+		
+		if((pollret = poll(pollfds, 1, -1)) < 0) {
+			if(errno == EINTR) continue;
+			else {
+				retval = -1;
+				break;
+			}
+		} else if (pollfds[0].revents & POLLIN) {
+			if((r = readToBuf(fd, buf)) == -1) {
+				retval = -1;
+				break;
+			} else if (r == 0) {
+				retval = 0;
+				break;
+			}
+		} else {
+			/* unknown error */
+			retval = -1;
+			break;
+		}
+	}
+	
+	va_end(ap);
+	
+	if(t == 1) if(extractToken(buf, token, ts, tl, fl) == -1) return -1;
+	
+	return retval;
+}
+
+
+
+
+
+int getTokenFromBuffer(struct buffer *buf, struct buffer *token, ...) {
+	va_list ap;
+	int ts, tl, fl;
+
+	/* we just don't care if searchToken thinks it found something or not */
+	va_start(ap, token);
+	searchToken(&ts, &tl, &fl, buf, ap);
+	va_end(ap);
+	
+	
+	if(tl == 0) return 0;
+	else {
+		if(extractToken(buf, token, ts, tl, fl) == -1) return -1;
+	}
+	
+	return 1;
+}
+
+
+
+
+int getTokenFromStreamBuffer(struct buffer *buf, struct buffer *token, ...) {
+	va_list ap;
+	int t;
+	
+	int ts, tl, fl;
+	
+	va_start(ap, token);
+	t = searchToken(&ts, &tl, &fl, buf, ap);
+	va_end(ap);
+	
+	
+	if(t == 1) if(extractToken(buf, token, ts, tl, fl) == -1) return -1;
+	
+	return t;
+}
+

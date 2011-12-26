@@ -1,0 +1,48 @@
+#ifndef _tokenizer_h
+#define _tokenizer_h
+
+#include "../util/util.h"
+
+
+/* getToken*-Functions
+ * All these functions attempt to extract a token from the buffer.
+*/
+
+/* getTokenFromStream
+ * This function blocks (and is therefore _not_ useable in conjunction with
+ * polling multiple file-descriptors) until a token arrives on fd. It shall be
+ * used in simple cases (the process doesn't handle signals) like reading the
+ * config file or recieving filelists and results.
+ * Return Values are: -1 on error, 0 on stream-end, 1 on token found
+*/
+int getTokenFromStream(int fd, struct buffer *buf, struct buffer *token, ...);
+
+/* getTokenFromStreamBuffer
+ * This function is usable in multiple fd (poll) cases. It doesn't read from
+ * a filedescriptor, but expects a buffer that contains just the data that
+ * arrived from the stream (and is therefore not terminated by anything).
+ * Return Values are: -1 on error, 0 on no token, 1 on token found
+*/
+int getTokenFromStreamBuffer(struct buffer *buf, struct buffer *token, ...);
+
+/* getTokenFromBuffer
+ * This function is used for further slicing down contents of a buffer. For
+ * example making "words" out of "lines" (lines were already tokenized by
+ * getTokenFromStreamBuffer). The buffer used here is already null-terminated.
+ * Return Values are: -1 on error, 0 on no token, 1 on token found
+*/
+int getTokenFromBuffer(struct buffer *buf, struct buffer *token, ...);
+
+
+/* searchString
+ * searchString uses tokenizer functionality (searchToken) to determine if any
+ * of multiple search-strings are in char *string. It doesn't alter anything.
+ * Return Values: 1 search-string found, 0 nothing found.
+*/
+int searchString(char *string, ...);
+
+
+#endif
+
+
+
