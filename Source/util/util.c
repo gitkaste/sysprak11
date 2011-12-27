@@ -1,8 +1,11 @@
-#include "util.h"
-#include <string.h>
+/* needs to be defined before anything else! */
+#define _XOPEN_SOURCE 701
 #include <errno.h>
 #include <stdlib.h>
-#include <sys/types.h>
+#include <unistd.h>
+#include <stdio.h>
+#include "util.h"
+#include <string.h>
 
 int createBuf(struct buffer *buf, unsigned int maxsize){
 	buf->buf = malloc(maxsize);
@@ -29,7 +32,8 @@ void freeBuf(struct buffer *buf){
 	buf->buflen = 0;
 	free(buf->buf);
 }
-ssize_t writeWrapper (int fd, const void *buf, size_t count){
+ssize_t writeWrapper (int fd, const void *bufv, size_t count){
+	char * buf = (char *) bufv;
 	int countwritten;
 	int totalcount = 0;
 	errno = 0;
@@ -51,16 +55,36 @@ ssize_t writeWrapper (int fd, const void *buf, size_t count){
 }
 
 ssize_t readToBuf (int fd, struct buffer *buf){
-	ssize_t count = 64;
-	ssize_t countwritten;
+	ssize_t count = buf->bufmax-1;
+	ssize_t countwritten = 0;
 
- while ( (count = read (fd, buf->buf, buf->bufmax)) <0){
-	 if (count == 0) return 
+ for(;;){ 
+	 /* try to read count  many bytes */
+	 count = read (fd, buf->buf, count);
+	 if (count == 0) {
+		 buf->buflen = countwritten +1;
+		 buf->buf[buf->buflen] = '\0';
+		 return countwritten;
+	 }
+	 if (count ==-1) {
+		 if (errno == EINTR || errno == EAGAIN) return -2;
+		 /* shouldn't this be continue instead? */
+	 } else return -1;
+	 /* see how many are left */
+	 countwritten += count;
+	 if (countwritten >= buf->bufmax -1){
+		 buf->buflen = countwritten +1;
+		 buf->buf[buf->buflen] = '\0';
+		 return countwritten;
+	 } else {
+		 /* reinitialize it so you don't overflow the buffer */
+		 count = buf->bufmax - countwritten;
+	 }
  }
 }
+
 ssize_t writeBuf (int fd, struct buffer *buf){
 	ssize_t written = writeWrapper(fd, buf->buf, buf->buflen);
 	flushBuf(buf);
 	return written;
 }
-

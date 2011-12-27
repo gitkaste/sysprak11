@@ -1,14 +1,12 @@
 #ifndef _util_h
 #define _util_h
-
+#include <sys/types.h>
 
 struct buffer {
 	unsigned char *buf;
 	unsigned int bufmax;
 	unsigned int buflen;
 };
-
-
 
 
 /* Buffer Functions
@@ -24,9 +22,8 @@ int copyBuf (struct buffer *dest, struct buffer *src);
 void flushBuf(struct buffer *buf);
 void freeBuf(struct buffer *buf);
 
-
-ssize t writeWrapper (int fd, const void *buf, size t count);
-ssize t readToBuf (int fd, struct buffer *buf);
-ssize t writeBuf (int fd, struct buffer *buf);
+ssize_t writeWrapper (int fd, const void *buf, size_t count);
+ssize_t readToBuf (int fd, struct buffer *buf);
+ssize_t writeBuf (int fd, struct buffer *buf);
 
 #endif

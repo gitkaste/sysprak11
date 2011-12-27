@@ -1,4 +1,11 @@
-ssize_t writef (int fd, char *fmt, ...) {
+#include <stdarg.h>
+#include "writef.h"
+#include "util.h"
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+ssize_t writef (int fd, char *fmt, ...){
 	int ret;
 	char *p;
 	va_list ap;
@@ -12,8 +19,7 @@ ssize_t writef (int fd, char *fmt, ...) {
 	return ret;
 }
 
-
-char *stringBuilder (const char *fmt, ...) {
+char *stringBuilder (const char *fmt, ...){
 	char *ret;
 	va_list ap;
 	
@@ -23,10 +29,7 @@ char *stringBuilder (const char *fmt, ...) {
 	return ret;
 }
 
-
-
-/* WARNING: REQUIRES ISO_C99 for va_copy !!!!! */
-char *vStringBuilder (const char *fmt, va_list ap) {
+char *vStringBuilder (const char *fmt, va_list ap){
 	/* Code taken from vsnprintf manpage */
 	int n, size = 128;
 	char *p, *np;
