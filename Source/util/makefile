@@ -7,16 +7,16 @@ endif
 
 OBJS = util.o writef.o
 
-LIBS += util.a
+LIB = libutil.a
+LIBS+=$(LIB)
 
 # This is an intrinsic rule but hey let's be explicit
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-util.a: $(OBJS)
-	ar cru $@ $?
-	-ranlib $@
+$(LIB): $(OBJS)
+	ar crus $@ $?
 
 .PHONY: clean
 clean:
-	rm -f *.o *.a
+	rm -f *.o *.a test

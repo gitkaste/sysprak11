@@ -1,7 +1,8 @@
 #ifndef _tokenizer_h
 #define _tokenizer_h
 
-#include "../util/util.h"
+#include "util.h"
+#include <stdarg.h>
 
 
 /* getToken*-Functions
@@ -42,7 +43,7 @@ int getTokenFromBuffer(struct buffer *buf, struct buffer *token, ...);
 int searchString(char *string, ...);
 
 
+int searchToken(int *tokenstart,int *tokenlength,int *fulllength, struct buffer *buffer_temp, va_list ap);
+int vaToken(struct buffer *buffer_temp, int *tokenstart, int *tokenlength, int *fulllength, ...);
+int extractToken(struct buffer *buffer_temp, struct buffer *token, int tokenstart,int tokenlength, int fulllength);
 #endif
-
-
-

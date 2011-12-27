@@ -8,5 +8,6 @@ VPATH =../util/
 # this inserts all the rules from that makefile 
 # even clean!
 include ../util/makefile
+
 server: server.o util.a
 	$(CC) $(LDFLAGS) -o $@ $^  
