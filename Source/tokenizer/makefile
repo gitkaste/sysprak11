@@ -7,6 +7,7 @@ endif
 CFLAGS += -I ../util/
 LDFLAGS += -L ../util/ -L.
 
+.DEFAULT: $(OBJS)
 -include ../util/makefile
 VPATH=../util
 

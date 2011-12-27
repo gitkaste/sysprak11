@@ -10,14 +10,9 @@
 #include "writef.h"
 
 char * path_join(const char * basedir, const char * subdir){
-	int basedirlen = strlen(basedir);
-	char * fulldirname = malloc(basedirlen + strlen(subdir) +2);
+	char * fulldirname = malloc(strlen(basedir) + strlen(subdir) +2);
 	if (!fulldirname) return NULL;
-	strcpy (fulldirname,basedir);
-	fulldirname[basedirlen] = '/';
-	strcpy(fulldirname+basedirlen+1, subdir);
-	fulldirname[basedirlen + strlen(subdir)+1] = '\0';
-	return fulldirname;
+	return strcat(strcat(strcpy(fulldirname,basedir),"/"), subdir);
 }
 
 int parseDirToFD(int fd, const char * basedir, const char * subdir){
