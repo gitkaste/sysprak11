@@ -4,8 +4,7 @@
 #include <stdio.h>
 
 #define LOG(x) do {puts(x); fflush(stdout);} while(0)
-
-int main (){
+void test_util(){
 	int fd = STDIN_FILENO; /*open(filename,mode);*/
 	struct buffer buf;
 	struct buffer buf2;
@@ -28,5 +27,8 @@ int main (){
 	freeBuf(&buf2);
 	LOG("freed buf2");
 	writef(STDOUT_FILENO, "testing writef with 1st buffer: %s", buf.buf);
+}
+int main (){
+	test_util();
 	return 0;
 }
