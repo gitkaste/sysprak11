@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include "util.h"
 #include <string.h>
+#include "util.h"
 
 int createBuf(struct buffer *buf, unsigned int maxsize){
 	buf->buf = malloc(maxsize);

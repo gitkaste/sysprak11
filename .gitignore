@@ -1,3 +1,5 @@
 *.o
 *.a
 Source/server/server
+Source/directoryParser/test
+Source/tokenizer/test
