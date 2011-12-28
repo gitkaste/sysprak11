@@ -3,4 +3,5 @@
 Source/server/server
 Source/directoryParser/test
 Source/tokenizer/test
+Source/config/test
 Source/util/test
