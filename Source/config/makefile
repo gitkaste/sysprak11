@@ -26,5 +26,5 @@ OBJS = config.o
 #	-ranlib $@
 #
 
-test: test.o $(OBJS) $(LIBS)
-	$(CC) -static $(LDFLAGS) -o $@ test.o $(OBJS) -lutil -ltokenizer
+test: test.o $(OBJS) $(LIBS) tokenizer.o
+	$(CC) -static $(LDFLAGS)  -lutil -o $@ $(OBJS) test.o tokenizer.o

@@ -26,22 +26,6 @@ void confDefaults(struct config *conf){
 	strcpy(conf->share, "share");
 	conf->shm_size = 0; 
 }
-void strip_comments(struct buffer *buf, ...){
-	int commentstart; 
-	int tokenlength;
-	int fulllength;
-	va_list ap;
-	char *  comment_char;
-	va_start(ap, buf);
-	while (1){ 
-		if ( !(comment_char =  va_arg(ap, char *)) ) break;
-		if (!searchToken( &commentstart, &tokenlength, &fulllength, buf, comment_char)) continue;
-		/* we found a comment marker, so kill everything after the marker  */
-		buf->buflen = commentstart;
-		buf->buf[buf->buflen]='\0';
-	}
-	va_end(ap);
-}
 
 /* fills the conf with the values from the conf file */
 int parseConfig (int conffd, struct config *conf){
@@ -49,6 +33,7 @@ int parseConfig (int conffd, struct config *conf){
 	struct buffer value;
 	struct buffer line;
 	struct buffer buf_tmp;
+	char * commentstart;
 	createBuf(&line,1024);
 	createBuf(&buf_tmp,1024);
 	createBuf(&key,256);
@@ -57,11 +42,18 @@ int parseConfig (int conffd, struct config *conf){
 	while ( ( res = getTokenFromStream( conffd, &buf_tmp, &line, "\n", "\r\n" ) ) ){
 		/* crap error */
 		if (res ==  -1) return -1;
-		/* you can't use searchToken to strip comments because then you have a problem with lines starting with comments*/
-		strip_comments(&line, "#", ";");
+		/* strip comments first! */
+		if ( (commentstart = strchr( (char *) line.buf, ';')) ){
+			commentstart[0]='\0';
+			/* cheaper than strlen  */
+			line.buflen = commentstart-(char *)line.buf; 
+		}
+		if  ( (commentstart = strchr( (char *)line.buf, '#')) ){
+			commentstart[0]='\0';
+			line.buflen = commentstart-(char *)line.buf; 
+		}
 		while ( getTokenFromBuffer(&line, &key, "\t", " ") == 1){
 			/* break out inner loop if we don't have an argument to key */
-			p
 			if (getTokenFromBuffer(&line, &value, "\t", " ") != 1) break;
 
 			if (!strncmp((char *)key.buf, "ip", key.buflen)){
