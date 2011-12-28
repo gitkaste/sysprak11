@@ -5,7 +5,7 @@ ifndef CFLAGS
 CFLAGS = -Wall -pedantic -Werror -std=c99 
 endif
 
-OBJS = util.o writef.o
+OBJS = util.o writef.o shmem.o
 
 LIB = libutil.a
 LIBS+=$(LIB)
@@ -20,3 +20,6 @@ $(LIB): $(OBJS)
 .PHONY: clean
 clean:
 	rm -f *.o *.a test
+
+test: test.o shmem.o
+	$(CC) $(LDFLAGS) -o $@ $^
