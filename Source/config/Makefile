@@ -1,0 +1,2 @@
+CONFIGOBJS = config.o
+OBJS+=$(CONFIGOBJS)

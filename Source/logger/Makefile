@@ -1,0 +1,2 @@
+LOGGEROBJS=logger.o
+OBJS+=$(LOGGEROBJS)

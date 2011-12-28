@@ -1,13 +1,10 @@
-#SRC = .
-#DIR = $(SRC)/$(FOLDER)
-#LIB = $(FOLDER).a
-#
-#FOLDER = util
+clean test: 
+	$(MAKE) -C util $@
+	$(MAKE) -C tokenizer $@
+	$(MAKE) -C logger $@
+	$(MAKE) -C directoryParser $@
+	$(MAKE) -C server $@
+	$(MAKE) -C client $@
 
-.PHONY: server
-server:
-	make -C server server
-.PHONY: clean
-clean:
-	make -C util clean
-	make -C tokenizer clean
+build:
+	mkdir $@

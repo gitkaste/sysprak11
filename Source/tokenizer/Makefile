@@ -1,0 +1,2 @@
+TOKENIZEROBJS = tokenizer.o
+OBJS += $(TOKENIZEROBJS)
