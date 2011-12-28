@@ -13,7 +13,7 @@
  * This function blocks (and is therefore _not_ useable in conjunction with
  * polling multiple file-descriptors) until a token arrives on fd. It shall be
  * used in simple cases (the process doesn't handle signals) like reading the
- * config file or recieving filelists and results.
+ * config file or receiving filelists and results.
  * Return Values are: -1 on error, 0 on stream-end, 1 on token found
 */
 int getTokenFromStream(int fd, struct buffer *buf, struct buffer *token, ...);
@@ -42,8 +42,16 @@ int getTokenFromBuffer(struct buffer *buf, struct buffer *token, ...);
 */
 int searchString(char *string, ...);
 
-
+/* searchToken 
+ * This function searches for the first non keyword tokenstart in buffer_temp
+ * the keywords ap delimit the tokens
+*/
 int searchToken(int *tokenstart,int *tokenlength,int *fulllength, struct buffer *buffer_temp, va_list ap);
+
+/* vaToken is just a debug function */
 int vaToken(struct buffer *buffer_temp, int *tokenstart, int *tokenlength, int *fulllength, ...);
+
+/* extractToken
+ * ... extracts token of tokenlength from buffer_temp starting at tokenstart */
 int extractToken(struct buffer *buffer_temp, struct buffer *token, int tokenstart,int tokenlength, int fulllength);
 #endif
