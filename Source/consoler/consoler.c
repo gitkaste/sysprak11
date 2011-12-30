@@ -17,8 +17,9 @@
 #include <termios.h> /* Terminal stuff */
 
 #include "consoler.h"
-#include "../util/util.h"
-#include "../tokenizer/tokenizer.h"
+#include "util.h"
+#include "writef.h"
+#include "tokenizer.h"
 
 
 

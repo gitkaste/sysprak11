@@ -4,8 +4,8 @@
 #include <inttypes.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include "../util/util.h"
-#include "../directoryParser/directoryParser.h"
+#include "util.h"
+#include "directoryParser.h"
 
 
 /* Defines for used resources */

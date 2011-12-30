@@ -9,10 +9,10 @@
 #include <inttypes.h>
 #include <errno.h>
 #include "protocol.h"
-#include "../util/util.h"
-#include "../util/writef.h"
-#include "../logger/logger.h"
-#include "../tokenizer/tokenizer.h"
+#include "util.h"
+#include "writef.h"
+#include "logger.h"
+#include "tokenizer.h"
 
 /* processIncomingData shall be called when there is Data on an fd which is
  * processed by a protocol.
