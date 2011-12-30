@@ -25,10 +25,6 @@
 int raw (int fd, struct termios *new_io, struct termios *old_io);
 int getchar_wrapper(struct buffer *stdinbuf, int semid);
 
-
-
-
-
 /* Idea from http://www.pronix.de */
 int raw (int fd, struct termios *new_io, struct termios *old_io) {
 	/*Sichern unseres Terminals*/
@@ -53,14 +49,10 @@ int raw (int fd, struct termios *new_io, struct termios *old_io) {
 	return 0;
 }
 
-
-
 int getcharWrapper(struct buffer *stdinbuf) {
 	char c;
 	char esc[5];
 	int r;
-	
-	
 	
 	/* c = getchar(); */ /* getchar is evil ! (buffered) */
 	if ((r = read(STDIN_FILENO, &c, 1)) != 1) {
@@ -111,8 +103,6 @@ int getcharWrapper(struct buffer *stdinbuf) {
 
 
 
-
-
 /* Consoler
  * A fork for handling the console.
  * This is neccessary, because we want to write stuff to the console
@@ -139,13 +129,10 @@ int consoler(int infd, int outfd) {
 	
 	/* Set Terminal raw */
 	raw(STDIN_FILENO, &new_io, &old_io);
-
 	
 	createBuf(&stdoutbuf, 16384);
 	createBuf(&stdinbuf, 16384);
 	createBuf(&stdoutline, 1024);
-	
-	
 	
 	/* Setting up stuff for Polling */
 	pollfds[0].fd = infd;
@@ -158,7 +145,6 @@ int consoler(int infd, int outfd) {
 
 	/* initial Prompt */
 	writef(STDOUT_FILENO, "\r>> ");
-
 	
 	while(1) {
 
@@ -172,11 +158,8 @@ int consoler(int infd, int outfd) {
 			break;
 		}
 		
-		
-		
 		if(pollfds[0].revents & POLLIN) {
-			/* Stuff for STDOUT came thorugh infd-pipe */
-			
+			/* Stuff for STDOUT came through infd-pipe */
 	
 			if((readret = readToBuf(infd, &stdoutbuf)) < 0) {
 				ret = -1;
@@ -250,11 +233,6 @@ int consoler(int infd, int outfd) {
 	return ret;
 }
 
-
-
-
-
-
 int consolemsg(int semid, int pipefd, const char *fmt, ...) {
 	char *p;
 	va_list ap;
@@ -263,7 +241,6 @@ int consolemsg(int semid, int pipefd, const char *fmt, ...) {
 	va_start(ap, fmt);
 	p = vStringBuilder(fmt, ap);
 	va_end(ap);
-
 	
 	//if(semWait(semid, SEM_CONSOLER) == -1) return -1;
 	
@@ -274,7 +251,3 @@ int consolemsg(int semid, int pipefd, const char *fmt, ...) {
 	free(p);
 	return 1;
 }
-
-
-
-

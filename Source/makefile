@@ -6,5 +6,6 @@ clean test:
 	$(MAKE) -C server $@
 	$(MAKE) -C client $@
 
-build:
-	mkdir $@
+server client: 
+	$(MAKE) -C $@ $@
+	cp $@/$@  .

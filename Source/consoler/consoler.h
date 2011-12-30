@@ -12,12 +12,9 @@
  * it needs to be protected by a semaphore. */
 int consoler(int infd, int outfd);
 
-
 /* consolemsg
  * consolemsg just writes a message to consoler via pipefd (the writing-side of
  * consoler's infd) protected by a semaphore. */
 int consolemsg(int semid, int pipefd, const char *fmt, ...);
-
-
 
 #endif

@@ -10,7 +10,8 @@ int logger(int pipefd, int filefd){
 	ssize_t s, t;
 	struct buffer buf;
 	if ( createBuf(&buf,4096) == -1) return -1;
-	while ( (s= readToBuf(pipefd, &buf)) > 0 ){
+	while (1){ 
+		s = readToBuf(pipefd, &buf);
 	 	if (s  == -2 ) continue;
 		if (s == -1 ){
 			puts("arg");
