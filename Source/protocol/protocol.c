@@ -10,6 +10,7 @@
 #include <errno.h>
 #include "protocol.h"
 #include "../util/util.h"
+#include "../util/writef.h"
 #include "../logger/logger.h"
 #include "../tokenizer/tokenizer.h"
 
@@ -98,7 +99,7 @@ int reply(int comfd, int logfd, int semid, int code, const char *msg) {
 action validateToken(struct buffer *token, struct protocol *prot) {
 	int i;
 	for(i = 0; i < prot->actionCount; i++) {
-		if(strcasecmp(prot->actions[i].actionName, token->buf) == 0)
+		if(strcasecmp(prot->actions[i].actionName, (char *) token->buf) == 0)
 			return prot->actions[i].actionPtr;
 	}
 	
