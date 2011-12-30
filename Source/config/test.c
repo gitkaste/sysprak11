@@ -18,4 +18,6 @@ int main(int argc, char * argv[]){
 	LOG("done with defaulting");
 	int fd = open (argv[1],O_RDONLY);
 	parseConfig(fd, &conf);
+	fflush(stdout);
+	writeConfig(1, &conf);
 }

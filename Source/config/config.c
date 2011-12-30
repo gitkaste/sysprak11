@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include "tokenizer.h"
 #include "config.h"
+#include "writef.h"
 
 /* This is a gnu extension but it's safer 
 #define Min(X, Y) do { 
@@ -39,25 +40,28 @@ int parseConfig (int conffd, struct config *conf){
 	createBuf(&key,256);
 	createBuf(&value,256);
 	int res;
-	while ( ( res = getTokenFromStream( conffd, &buf_tmp, &line, "\n", "\r\n" ) ) ){
+	while ( ( res = getTokenFromStream( conffd, &buf_tmp, &line, "\n", "\r\n",NULL ) ) ){
+		printf("res: %d line: %s\n ",res, line.buf); 
 		/* crap error */
 		if (res ==  -1) return -1;
-		/* strip comments first! */
-		if ( (commentstart = strchr( (char *) line.buf, ';')) ){
-			commentstart[0]='\0';
-			/* cheaper than strlen  */
-			line.buflen = commentstart-(char *)line.buf; 
-		}
+		/* BUGBUG ; works like # but this is fundamentally flawed and i don't see how to fix it 
+		* BUGBUG getTokenFromStream signals in no way that it doesn't find the end signal 
+		* BUGBUG once we are after the getTokenFromStream we have no way of knowing whether a sep 
+		* was found and cut or not found at all so getTokenFromStreamBuffer doesn't help, 
+		* because we can't re-search for it */
 		if  ( (commentstart = strchr( (char *)line.buf, '#')) ){
 			commentstart[0]='\0';
 			line.buflen = commentstart-(char *)line.buf; 
 		}
-		while ( getTokenFromBuffer(&line, &key, "\t", " ") == 1){
+		while ( getTokenFromBuffer(&line, &key, "\t", " ", NULL) == 1){
+			printf("token: %s\n", key.buf);
 			/* break out inner loop if we don't have an argument to key */
-			if (getTokenFromBuffer(&line, &value, "\t", " ") != 1) break;
+			if (getTokenFromBuffer(&line, &value, "\t", " ", NULL) != 1) break;
 
+			/* Theoretically errno needs to be checked after every strtol */
 			if (!strncmp((char *)key.buf, "ip", key.buflen)){
 				/* weird shit that doesn't match the signature */
+				inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->ip));
 			}else if (!strncmp((char *)key.buf, "port", key.buflen)){
 				conf->port = (uint16_t) strtol((char *)value.buf, NULL, 10);
 			}else if (!strncmp((char *)key.buf, "loglevel", key.buflen)){
@@ -68,9 +72,19 @@ int parseConfig (int conffd, struct config *conf){
 				strncpy(conf->logfile, (char *)value.buf, MIN(value.buflen, FILENAME_MAX));
 			}else if (!strncmp((char *)key.buf, "share", key.buflen)){
 				strncpy(conf->share, (char *)value.buf, MIN(value.buflen, FILENAME_MAX));
+			}else{
+				printf("crap unknown token: %s\n", key.buf);
 			} 
 			/* ... */
 		}
 	}
 	return 1;
+}
+int writeConfig (int fd, struct config *conf){
+	char ip[127];
+	/* There is no way to enter a flawed ip in our system */
+	inet_ntop(AF_INET, &conf->ip, ip, 126);
+	if (writef(fd, "Using config:\n\tip:\t\t%s\n\tport:\t\t%d\n",ip, conf->port) == -1) return -1;
+	if (writef(fd, "\tlogfile:\t%s\n\tloglevel:\t%d\n", conf->logfile, conf->loglevel) == -1) return -1;
+	return writef(fd, "\tshare:\t\t%s\n\tshm_size:\t%d\n", conf->share, conf->shm_size);
 }

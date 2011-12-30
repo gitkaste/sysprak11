@@ -14,7 +14,7 @@ typedef struct separator * ptsep;
 #define NOMEM if(1){fprintf(stderr,"ALARM: Malloc failed"); exit(1);}
 
 /* cf. man qsort, sorting function for aforementioned function */
-int strlencmp (const void * a, const void * b) { return ( strlen(*(char **)b) - strlen(*(char **)a) ); }
+int strlencmp (const void * a, const void * b) {return ( strlen(*(char **)b) - strlen(*(char **)a) ); }
 
 int searchToken(int *tokenstart,int *tokenlength,int *fulllength, struct buffer *buffer_temp, va_list ap) {
 	/* the return value: 1 if a separator was found, else 0 */
@@ -22,7 +22,7 @@ int searchToken(int *tokenstart,int *tokenlength,int *fulllength, struct buffer 
 	/* define an array of strings for the separators and a total number of separators */
 	char **separator_array;
 	int separator_number_total=0;
-	char led_seppelin;
+	char led_seppelin; /* used to signal weather the last token was a separator */
 	ptsep separators, current_sep;
 
 	*fulllength = 0;
@@ -45,7 +45,7 @@ int searchToken(int *tokenstart,int *tokenlength,int *fulllength, struct buffer 
 	if (!separator_array){ NOMEM }
 
 	/* parse the linked list into the array and clean up afterwards */
-	for (int i = 0; i < separator_number_total; i++){
+	for ( int i = 0; i < separator_number_total; i++){
 		current_sep = separators;
 	  separators = separators->next;
 	  separator_array[i] = current_sep->buf;
@@ -56,15 +56,16 @@ int searchToken(int *tokenstart,int *tokenlength,int *fulllength, struct buffer 
 	/* Sort by length of the keywords to avoid problems with shorter strings,
 	 * that are total subsets of bigger ones shadowing the latter */
 	qsort (separator_array, separator_number_total, sizeof(char *), strlencmp);
+	//for( int m = 0; m < separator_number_total; ++m) printf("%d: '%s'", m, separator_array[m]);
 
 	/* search for leading separators and set *tokenstart correctly; if no leading
 	 * separators are found, set *tokenstart to 0	*/
-	for(unsigned int i = 0; i < buffer_temp->buflen; ++i) {
+	for( unsigned int i = 0; i < buffer_temp->buflen; ++i) {
 		led_seppelin=0;
 		/* test for ALL the separators */
-		for(int m = 0; m < separator_number_total; ++m) {
+		for( int m = 0; m < separator_number_total; ++m) {
 			/* separator is found */
-			if(!strcmp((char *)&buffer_temp->buf[i], separator_array[m])) {		
+			if(strncmp((char *) &buffer_temp->buf[i], separator_array[m], strlen(separator_array[m])) == 0) {
 				return_value = 1;
 				*tokenstart += strlen(separator_array[m]);
 				led_seppelin=1;
@@ -82,14 +83,16 @@ int searchToken(int *tokenstart,int *tokenlength,int *fulllength, struct buffer 
 
 
 	/* find the next separator and set *tokenlength */
-	for(unsigned int j = *tokenstart; j < buffer_temp->buflen; ++j) {
+	for( unsigned int j = *tokenstart; j < buffer_temp->buflen; ++j) {
 		for(int n = 0; n < separator_number_total; ++n) {
+			//printf("j: %d/%d, n: %d/%d\t", j, buffer_temp->buflen, n, separator_number_total);
 			/* separator is found */
-			if(!strcmp((char *)&buffer_temp->buf[j], separator_array[n])) {
+			if(strncmp((char *) &buffer_temp->buf[j], separator_array[n], strlen(separator_array[n])) == 0) {
 				return_value = 1;
 				/* add the length of the found seperator to fulllength */
 				*fulllength += strlen(separator_array[n]);
 				*tokenlength = j - *tokenstart;
+			//	printf("found %s", buffer_temp->buf + *tokenstart);
 				/* let the outer loop exit */
 				j = buffer_temp->buflen;
 				/* let the inner loop exit */
@@ -135,7 +138,6 @@ int extractToken(struct buffer *buffer_temp, struct buffer *token,
 	return 1;
 }
 
-
 int getTokenFromStream(int fd, struct buffer *buf, struct buffer *token, ...) {
 	va_list ap, ap_copy;
 	int r, t, retval = 1;
@@ -151,9 +153,9 @@ int getTokenFromStream(int fd, struct buffer *buf, struct buffer *token, ...) {
 		va_copy(ap_copy, ap);
 		t = searchToken(&ts, &tl, &fl, buf, ap_copy);
 		va_end(ap_copy);
-		
+
+		//printf("buf: '%s' token found?=%d\n",buf->buf, t);
 		if(t == 1) break;
-		
 		/* there won't be a token in this buffer anymore as it's full */
 		if(buf->buflen >= buf->bufmax) {
 			retval = -1;
@@ -167,7 +169,7 @@ int getTokenFromStream(int fd, struct buffer *buf, struct buffer *token, ...) {
 				break;
 			}
 		} else if (pollfds[0].revents & POLLIN) {
-			if((r = readToBuf(fd, buf)) == -1) {
+			if( (r = readToBuf(fd, buf)) == -1) {
 				retval = -1;
 				break;
 			} else if (r == 0) {
@@ -185,10 +187,6 @@ int getTokenFromStream(int fd, struct buffer *buf, struct buffer *token, ...) {
 	return retval;
 }
 
-
-
-
-
 int getTokenFromBuffer(struct buffer *buf, struct buffer *token, ...) {
 	va_list ap;
 	int ts, tl, fl;
@@ -198,7 +196,6 @@ int getTokenFromBuffer(struct buffer *buf, struct buffer *token, ...) {
 	searchToken(&ts, &tl, &fl, buf, ap);
 	va_end(ap);
 	
-	
 	if(tl == 0) return 0;
 	else {
 		if(extractToken(buf, token, ts, tl, fl) == -1) return -1;
@@ -206,9 +203,6 @@ int getTokenFromBuffer(struct buffer *buf, struct buffer *token, ...) {
 	
 	return 1;
 }
-
-
-
 
 int getTokenFromStreamBuffer(struct buffer *buf, struct buffer *token, ...) {
 	va_list ap;

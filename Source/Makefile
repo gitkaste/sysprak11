@@ -14,6 +14,10 @@ CFLAGS += $(INCLUDES)
 clean:
 	find . -maxdepth 1 -iname '*.o' -delete -or -iname '*.a' -delete -or -type f -executable -delete
 
+foo:
+	echo $(MAKEFILES)
+	echo $(OBJS)
+
 #This should work anywhere and it doesn't hurt to have unused object files except for speed
 #test: test.o $(OBJS)
 #	$(CC) $(LDFLAGS) -o $@ $^
