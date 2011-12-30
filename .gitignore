@@ -1,7 +1,9 @@
 *.o
 *.a
 Source/server/server
+Source/client/client
 Source/directoryParser/test
 Source/tokenizer/test
 Source/config/test
 Source/util/test
+Source/logger/test
