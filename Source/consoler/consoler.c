@@ -35,7 +35,7 @@ int raw (int fd, struct termios *new_io, struct termios *old_io) {
 
 	/*Wir verändern jetzt die Flags für den raw-Modus*/
 	new_io->c_iflag =
-		new_io->c_iflag & ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+	new_io->c_iflag & ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
 	new_io->c_oflag = new_io->c_iflag & ~(OPOST);
 	new_io->c_cflag = new_io->c_cflag & ~(CSIZE | PARENB);
 	new_io->c_lflag = new_io->c_lflag & ~(ECHO|ICANON|IEXTEN|ISIG);
