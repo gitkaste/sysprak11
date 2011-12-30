@@ -54,16 +54,12 @@
 */
 struct actionParameters { /* elwms */
 	uint32_t usedres; /* Used Resources */
-	
 	int c2s;
 	int s2c;
-	//int comfd; /* replaces c2s and s2c when sockets are introduced */
-	
+	/*int comfd;*/ /* replaces c2s and s2c when sockets are introduced */
 	int semid;
-	
 	int logfd;
 	pid_t logpid;
-	
 	int sigfd;
 	
 	struct buffer combuf;
@@ -72,7 +68,6 @@ struct actionParameters { /* elwms */
 	
 	/* This is the protocol used on comfd and its buffers */
 	struct protocol *prot;
-	
 	/* ip of communication partner ('peer') */
 	struct in_addr comip;
 	uint16_t comport;
@@ -85,9 +80,7 @@ struct actionParameters { /* elwms */
 */
 struct serverActionParameters {
 	uint32_t usedres; /* Used Resources */
-	
 	int shmid_filelist;
-	
 	struct array *filelist; /* Filelist Array, Elements are flEntries */
 };
 
@@ -100,25 +93,18 @@ struct serverActionParameters {
 */
 struct clientActionParameters {
 	uint32_t usedres; /* Used Resources */
-	
-	
 	int outfd; /* Consoler */
 	pid_t conpid;
-	
 	int shmid_results;
 	struct array *results;
-
 	/* server connection */
 	int serverfd; /* Socket to server
 			(needed for stdin-protocol and its passOnAction) */
-	
 	
 	/* This is the Child-Process-Array. Needed in some
 	 * stdin-protocol-actions. */
 	struct array *cpa;
 };
-
-
 
 /* Just a union to make universal actions possible */
 union additionalActionParameters {
@@ -126,12 +112,9 @@ union additionalActionParameters {
 	struct clientActionParameters *cap;
 };
 
-
-
 /* typedef for a pointer to an action */
 typedef int(*action) (struct actionParameters *ap,
 			union additionalActionParameters *aap);
-
 
 /* struct action
  * each action has a name and a description. 
@@ -141,7 +124,6 @@ struct action {
 	char description[1024];
 	action actionPtr;
 };
-
 
 /* struct protocol
  * collects all actions used by a protocol 
@@ -153,11 +135,6 @@ struct protocol {
 	/*struct action *actions;*/ /* this only works for dynamically
 					allocated memory */
 };
-
-
-
-
-
 
 /* processIncomingData
  * This function shall be called when there is data on an fd which is
@@ -178,7 +155,6 @@ struct protocol {
 int processIncomingData(struct actionParameters *ap,
 		union additionalActionParameters *aap);
 
-
 /* processCommand
  * This function excepts a tokenized line in ap->comline which it parses into
  * a word (comword) and finds the corresponding action via validateToken
@@ -190,7 +166,6 @@ int processIncomingData(struct actionParameters *ap,
 int processCommand(struct actionParameters *ap,
 		union additionalActionParameters *aap);
 
-
 /* validateToken
  * This function takes a token and searches a protocol structure for
  * a corresponding action (actionName). If no matching action is found,
@@ -198,8 +173,6 @@ int processCommand(struct actionParameters *ap,
  * Returns a pointer to the action function.
 */
 action validateToken(struct buffer *token, struct protocol *prot);
-
-
 
 /* reply
  * sends a reply to the client (including a numerical code)
@@ -223,7 +196,6 @@ int reply(int comfd, int logfd, int semid, int code, const char *msg);
  *       -2 - child: cleanup and exit ???
  *       -3 - child: cleanup and exit with error
 */
-
 
 #endif
 
