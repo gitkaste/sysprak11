@@ -101,9 +101,6 @@ int getcharWrapper(struct buffer *stdinbuf) {
 	return 0;
 }
 
-
-
-
 /* Consoler
  * A fork for handling the console.
  * This is neccessary, because we want to write stuff to the console
@@ -161,7 +158,6 @@ int consoler(int infd, int outfd) {
 		
 		if(pollfds[0].revents & POLLIN) {
 			/* Stuff for STDOUT came through infd-pipe */
-	
 			if((readret = readToBuf(infd, &stdoutbuf)) < 0) {
 				ret = -1;
 				break;
@@ -169,7 +165,6 @@ int consoler(int infd, int outfd) {
 				ret = 0;
 				break;
 			}
-			
 			
 			/* remove prompt */
 			writef(STDOUT_FILENO, "\r%*s\r",

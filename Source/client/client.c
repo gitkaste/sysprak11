@@ -2,19 +2,24 @@
 #include <error.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include "config.h"
 #include "logger.h"
+#include "util.h"
+#include "consoler.h"
 
 /* ****IF I HAVE TO CHECK FOR close (?) errors USE LABELS AND GOTO! */
 
 int main (int argc, char * argv[]){
 	struct config conf;
 	/* in and out fds are seen as from the clients view point */
-	int logfd[2], consoleinfd[2] consoleoutfd[2];
+	int logfd[2], consoleinfd[2], consoleoutfd[2];
 	int consoleproc, logproc;
-	struct buffer buf;
+	struct buffer msg;
 
 	/***** Setup CONFIG *****/
 	if (argc < 2) {
@@ -22,7 +27,7 @@ int main (int argc, char * argv[]){
 		exit(EXIT_FAILURE);
 	}
 	int conffd = open (argv[1],O_RDONLY);
-	if ( fd == -1) {
+	if ( conffd == -1) {
 		perror("error opening config file:");
 		exit(EXIT_FAILURE);
 	}
@@ -34,9 +39,10 @@ int main (int argc, char * argv[]){
 	}
 	close(conffd);
 	/* check early - less rollback */
-	int logfilefd = open (conf->logfile, O_APPEND | O_CREAT, S_IRWXU);
-	if ( fd == -1) {
-		perror("error opening log file:");
+	int logfilefd = open (conf.logfile, 
+			O_APPEND|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP);
+	if ( logfilefd == -1) {
+		perror("error opening log file");
 		exit(EXIT_FAILURE);
 	}
 	if (pipe(consoleinfd) == -1) {
@@ -67,8 +73,8 @@ int main (int argc, char * argv[]){
 	case -1: 
 		perror("Error forking");
 		close(logfilefd);
-		close(logfilefd[0]);
-		close(logfilefd[1]);
+		close(logfd[0]);
+		close(logfd[1]);
 		close(consoleinfd[0]);
 		close(consoleinfd[1]);
 		close(consoleoutfd[0]);
@@ -77,11 +83,11 @@ int main (int argc, char * argv[]){
 		exit(EXIT_FAILURE);
 		exit(2);
 	case 0: /* we are in the child - Sick */
-		close(logfilefd[0]);
-		close(logfilefd[1]);
+		close(logfd[0]);
+		close(logfd[1]);
 		close(consoleoutfd[1]); /* writing end of pipe pushing stdout*/
 		close(consoleinfd[0]); /* reading end of pipe feeding stdin*/
-		consoler(consoleoutfd, consolerinfd);
+		consoler(consoleoutfd[0], consoleinfd[1]);
 		close(consoleoutfd[0]);
 		close(consoleinfd[1]);
 		exit(EXIT_SUCCESS);
@@ -94,8 +100,8 @@ int main (int argc, char * argv[]){
 	switch(logproc = fork()){
 	case -1: 
 		close(logfilefd);
-		close(logfilefd[0]);
-		close(logfilefd[1]);
+		close(logfd[0]);
+		close(logfd[1]);
 		close(consoleinfd[0]);
 		close(consoleinfd[1]);
 		close(consoleoutfd[0]);
@@ -119,17 +125,17 @@ int main (int argc, char * argv[]){
 
 	ssize_t s;
 	while (1){ 
-		s = readToBuf(consoleinfd[0], msg > 0);
+		s = readToBuf(consoleinfd[0], &msg);
  	 	if (s  == -2 ) continue;
 		if (s == -1 ){
 			puts("arg");
 			break;
 		}
-		logmsg(0, logfd[1], LOGLEVE_VERBOSE, "%s", msg);
-		consolemsg(0, consoleoutfd[1], "wc: %d\n", strlen(msg));
+		logmsg(0, logfd[1], LOGLEVEL_VERBOSE, "%s", msg);
+		consolemsg(0, consoleoutfd[1], "wc: %d\n", strlen((char *)msg.buf));
 	}
 
-	freeBuf(&buf);
+	freeBuf(&msg);
 	close(consoleoutfd[1]); 
 	close(consoleinfd[0]); 
 	close(logfd[1]); 
