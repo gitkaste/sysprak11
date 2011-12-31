@@ -1,6 +1,7 @@
 DIRS = $(shell find .. -mindepth 1 -type d)
 include ../Makefile
 
+.PRECIOUS: client
 client: $(OBJS) client.o
 	$(CC) -o $@ $^
-	./$@ client.conf
+	G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind -v --leak-check=full --log-file=./valgrindlog ./$@ client.conf

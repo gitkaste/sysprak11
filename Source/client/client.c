@@ -38,6 +38,7 @@ int main (int argc, char * argv[]){
 		exit(EXIT_FAILURE);
 	}
 	close(conffd);
+	writeConfig (STDOUT_FILENO,&conf);
 	/* check early - less rollback */
 	int logfilefd = open (conf.logfile, 
 			O_APPEND|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP);
@@ -132,7 +133,9 @@ int main (int argc, char * argv[]){
 			break;
 		}
 		logmsg(0, logfd[1], LOGLEVEL_VERBOSE, "%s", msg);
-		consolemsg(0, consoleoutfd[1], "wc: %d\n", strlen((char *)msg.buf));
+		/* subtract one from the strlen because newlines probably shouldn't count */
+		consolemsg(0, consoleoutfd[1], "wc: %d\n", strlen((char *)msg.buf)-1);
+		puts("end of loop");
 	}
 
 	freeBuf(&msg);

@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include "logger.h"
@@ -53,6 +54,7 @@ int logmsg(int semid, int pipefd, int loglevel, const char *fmt, ...){
 	buf.buflen = strlen(ret);
 
 	ssize_t written = writeBuf(pipefd, &buf);
+	free((void *)fmt);
 	freeBuf(&buf);
 	return (written > 0) ? 1 : -1;
 }

@@ -1,5 +1,8 @@
 *.o
 *.a
+*.swp
+*valgrindlog
+Source/client/client.log
 Source/server/server
 Source/client/client
 Source/directoryParser/test

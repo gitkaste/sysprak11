@@ -51,26 +51,34 @@ int parseConfig (int conffd, struct config *conf){
 			/* break out inner loop if we don't have an argument to key */
 			if (getTokenFromBuffer(&line, &value, "\t", " ", NULL) != 1) break;
 
-			/* Theoretically errno needs to be checked after every strtol */
+			/* BUGBUG Theoretically errno needs to be checked after every strtol */
+			/*** IP ***/
 			if (!strncmp((char *)key.buf, "ip", key.buflen)){
-				/* weird shit that doesn't match the signature */
 				inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->ip));
+			/*** Port ***/
 			}else if (!strncmp((char *)key.buf, "port", key.buflen)){
 				conf->port = (uint16_t) strtol((char *)value.buf, NULL, 10);
+			/*** Loglevel ***/
 			}else if (!strncmp((char *)key.buf, "loglevel", key.buflen)){
 				conf->loglevel = (uint8_t) strtol((char *)value.buf, NULL, 10);
+			/*** shm_size ***/
 			}else if (!strncmp((char *)key.buf, "shm_size", key.buflen)){
 				conf->shm_size = (uint32_t) strtol((char *)value.buf, NULL, 10);
+			/*** logfile ***/
 			}else if (!strncmp((char *)key.buf, "logfile", key.buflen)){
-				strncpy(conf->logfile, (char *)value.buf, MIN(value.buflen, FILENAME_MAX));
+				strncpy(conf->logfile, (char *)value.buf, FILENAME_MAX);
 			}else if (!strncmp((char *)key.buf, "share", key.buflen)){
-				strncpy(conf->share, (char *)value.buf, MIN(value.buflen, FILENAME_MAX));
+				strncpy(conf->share, (char *)value.buf, FILENAME_MAX);
 			}else{
 				printf("crap unknown token: %s\n", key.buf);
 			} 
 			/* ... */
 		}
 	}
+	freeBuf(&line);
+	freeBuf(&buf_tmp);
+	freeBuf(&key);
+	freeBuf(&value);
 	return 1;
 }
 int writeConfig (int fd, struct config *conf){
