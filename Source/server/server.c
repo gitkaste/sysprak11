@@ -79,8 +79,8 @@ int main (int argc, char * argv[]){
 	createBuf(&(ap.comline),4096);
 	createBuf(&(ap.comword),4096);
 
-//	int ap->c2s = mkfifo("tmp/syprac2s",S_IROTH|S_IWOTH);
-//	int ap->s2c = mkfifo("tmp/sypras2c",S_IROTH|S_IWOTH);
+	ap.c2s = mkfifo("tmp/syprac2s",S_IROTH|S_IWOTH);
+	ap.s2c = mkfifo("tmp/sypras2c",S_IROTH|S_IWOTH);
 
 	while (1){ 
 		processIncomingData(&ap, (union additionalActionParameters *)&sap);
