@@ -52,10 +52,13 @@ ssize_t writeBuf (int fd, struct buffer *buf){
 }
 
 ssize_t readToBuf (int fd, struct buffer *buf){
-	ssize_t count = buf->bufmax-1;
+	/* Apparently (reverse engineered - not in Spec) this function is 
+	 * assumed to conserve what's written in the buffer and append to
+	 * instead of overwrite this content! */
+	ssize_t count = buf->bufmax-buf->buflen-1;
 	errno=0;
 	/* try to read count many bytes */
-	count = read (fd, buf->buf, count);
+	count = read (fd, buf->buf+buf->buflen, count);
 	if (count ==-1) {
 		if (errno == EINTR || errno == EAGAIN) {
 			return -2;

@@ -41,20 +41,13 @@ int parseConfig (int conffd, struct config *conf){
 	createBuf(&value,256);
 	int res;
 	while ( ( res = getTokenFromStream( conffd, &buf_tmp, &line, "\n", "\r\n",NULL ) ) ){
-		printf("res: %d line: %s\n ",res, line.buf); 
 		/* crap error */
 		if (res ==  -1) return -1;
-		/* BUGBUG ; works like # but this is fundamentally flawed and i don't see how to fix it 
-		* BUGBUG getTokenFromStream signals in no way that it doesn't find the end signal 
-		* BUGBUG once we are after the getTokenFromStream we have no way of knowing whether a sep 
-		* was found and cut or not found at all so getTokenFromStreamBuffer doesn't help, 
-		* because we can't re-search for it */
 		if  ( (commentstart = strchr( (char *)line.buf, '#')) ){
 			commentstart[0]='\0';
 			line.buflen = commentstart-(char *)line.buf; 
 		}
 		while ( getTokenFromBuffer(&line, &key, "\t", " ", NULL) == 1){
-			printf("token: %s\n", key.buf);
 			/* break out inner loop if we don't have an argument to key */
 			if (getTokenFromBuffer(&line, &value, "\t", " ", NULL) != 1) break;
 

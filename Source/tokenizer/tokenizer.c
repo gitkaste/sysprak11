@@ -29,6 +29,7 @@ int searchToken(int *tokenstart,int *tokenlength,int *fulllength, struct buffer 
 	*tokenlength = 0;
 	*tokenstart = 0; 
 
+	/************** PARSING SEPARATORS ***************/
 	/* fill linked list with all the separators, this is more inefficient than 
 	 * realloc but way easier and safer than using a fixed buffer */
 	separators = current_sep = malloc(sizeof(struct separator));
@@ -58,6 +59,7 @@ int searchToken(int *tokenstart,int *tokenlength,int *fulllength, struct buffer 
 	qsort (separator_array, separator_number_total, sizeof(char *), strlencmp);
 	//for( int m = 0; m < separator_number_total; ++m) printf("%d: '%s'", m, separator_array[m]);
 
+	/************** SEARCH FOR LEADING SEPARATORS ***************/
 	/* search for leading separators and set *tokenstart correctly; if no leading
 	 * separators are found, set *tokenstart to 0	*/
 	for( unsigned int i = 0; i < buffer_temp->buflen; ++i) {
@@ -66,7 +68,6 @@ int searchToken(int *tokenstart,int *tokenlength,int *fulllength, struct buffer 
 		for( int m = 0; m < separator_number_total; ++m) {
 			/* separator is found */
 			if(strncmp((char *) &buffer_temp->buf[i], separator_array[m], strlen(separator_array[m])) == 0) {
-				return_value = 1;
 				*tokenstart += strlen(separator_array[m]);
 				led_seppelin=1;
 				/* skip the next strlen(separator_array[m]) chars */
@@ -81,6 +82,7 @@ int searchToken(int *tokenstart,int *tokenlength,int *fulllength, struct buffer 
 	/* overwritten later if a separator was found */
 	*tokenlength = buffer_temp->buflen - *tokenstart;
 
+	/************** SEARCH FOR SUFFIX SEPARATORS ***************/
 
 	/* find the next separator and set *tokenlength */
 	for( unsigned int j = *tokenstart; j < buffer_temp->buflen; ++j) {
@@ -137,7 +139,9 @@ int extractToken(struct buffer *buffer_temp, struct buffer *token,
 
 	return 1;
 }
-
+/* Function searches for the delims via searchtoken and if it can't find a token
+ * with a delim after it, then it fills up the buffer from fd until it's full or 
+ * it finds the token */
 int getTokenFromStream(int fd, struct buffer *buf, struct buffer *token, ...) {
 	va_list ap, ap_copy;
 	int r, t, retval = 1;
@@ -154,7 +158,6 @@ int getTokenFromStream(int fd, struct buffer *buf, struct buffer *token, ...) {
 		t = searchToken(&ts, &tl, &fl, buf, ap_copy);
 		va_end(ap_copy);
 
-		//printf("buf: '%s' token found?=%d\n",buf->buf, t);
 		if(t == 1) break;
 		/* there won't be a token in this buffer anymore as it's full */
 		if(buf->buflen >= buf->bufmax) {
