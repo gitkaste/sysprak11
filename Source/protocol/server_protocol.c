@@ -14,26 +14,20 @@
 #ifndef _POSIX_SOURCE
 #define _POSIX_SOURCE /* signal.h sigset_t */
 #endif
-
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
 #include <sys/wait.h> /* for signalfd (Signalhandler) */
 #include <signal.h>
 #include <poll.h> /* poll() */
-
 /* for inet_ntoa(). Probably this is just for some very verbose log-messages. */
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
 #include <inttypes.h>
 #include <errno.h>
-
 #include "protocol.h"
 #include "server_protocol.h"
 #include "../util/util.h"
@@ -44,9 +38,6 @@
 
 #include "../util/writef.h"
 /*#include "../util/signalfd.h"*/
-
-
-
 
 struct protocol server_protocol = {
 	&unknownCommandAction,
@@ -59,47 +50,30 @@ struct protocol server_protocol = {
 	}
 };
 
-
-
-
-
-
 int initializeServerProtocol(struct actionParameters *ap) {
-	
 	ap->prot = &server_protocol;
-	
-	
-	
 	return 1;
 }
-
-
-
 
 int unknownCommandAction(struct actionParameters *ap,
 		union additionalActionParameters *aap) {
 	char *msg;
-	
-	
 	msg = stringBuilder("Command \"%s\" not understood.\n",
 		ap->comword.buf);
 	reply(ap->comfd, ap->logfd, ap->semid, REP_WARN, msg);
 	free(msg);
-	
 	return 1;
 }
-
-
 
 int statusAction(struct actionParameters *ap,
 		union additionalActionParameters *aap) {
-	
-	<insert code here>
-	
+	char *msg;
+	msg = stringBuilder("WTF\n",
+		ap->comword.buf);
+	reply(ap->comfd, ap->logfd, ap->semid, REP_WARN, msg);
+	free(msg);
 	return 1;
 }
-
-
 
 int quitAction(struct actionParameters *ap,
 		union additionalActionParameters *aap) {
@@ -111,12 +85,14 @@ int quitAction(struct actionParameters *ap,
 	return 0;
 }
 
-
-
 int helpAction(struct actionParameters *ap,
 		union additionalActionParameters *aap) {
-	
-	<insert code here>
-	
+	char * msg;
+	struct protocol * p = ap->prot;;
+	for (int i =0; i < p->actionCount; i++){
+		msg = stringBuilder("%s: %s\n", p->actions[i].actionName, p->actions[i].description);
+		reply(ap->comfd, ap->logfd, ap->semid, REP_TEXT,msg); 	
+		free(msg);
+	}
 	return 1;
 }

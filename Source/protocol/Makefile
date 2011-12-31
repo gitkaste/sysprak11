@@ -1,3 +1,2 @@
-PROTOCOLOBJS=protocol.o
-#server_protocol.o protocol.o
+PROTOCOLOBJS=protocol.o server_protocol.o
 OBJS+=$(PROTOCOLOBJS)

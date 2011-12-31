@@ -5,6 +5,8 @@ clean test:
 	$(MAKE) -C directoryParser $@
 	$(MAKE) -C server $@
 	$(MAKE) -C client $@
+	$(MAKE) -C protocol $@
+	$(MAKE) -C consoler $@
 
 server client: 
 	$(MAKE) -C $@ $@

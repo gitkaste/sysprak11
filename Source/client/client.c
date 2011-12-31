@@ -13,7 +13,6 @@
 #include "consoler.h"
 
 /* ****IF I HAVE TO CHECK FOR close (?) errors USE LABELS AND GOTO! */
-
 int main (int argc, char * argv[]){
 	struct config conf;
 	/* in and out fds are seen as from the clients view point */

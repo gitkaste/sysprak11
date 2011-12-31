@@ -84,7 +84,6 @@ struct serverActionParameters {
 	struct array *filelist; /* Filelist Array, Elements are flEntries */
 };
 
-
 /* clientActionParameters
  * Additional action parameters used by the client. Contains consoler,
  * shared mem for results, serverfd (used by stdin-protocol as it's different

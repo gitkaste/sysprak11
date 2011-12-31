@@ -11,7 +11,7 @@ int logger(int pipefd, int filefd){
 	ssize_t s, t;
 	struct buffer buf;
 	if ( createBuf(&buf,4096) == -1) return -1;
-	while (1){ 
+	while (1) { 
 		s = readToBuf(pipefd, &buf);
 	 	if (s  == -2 ) continue;
 		if (s == -1 ){
@@ -21,6 +21,7 @@ int logger(int pipefd, int filefd){
 		}
 		if (s != ( t = writeBuf(filefd, &buf))) {
 			printf("%d - t %d",(int) s, (int) t);
+			if (t ==-1) perror("logger:");
 			freeBuf(&buf);
 			return -1;
 		}
