@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <inttypes.h>
 #include <errno.h>
 #include "protocol.h"
@@ -53,6 +54,7 @@ int processIncomingData(struct actionParameters *ap,
 	/* tokenize all lines recieved and process them */
 	while((gtfsret = getTokenFromStreamBuffer(&ap->combuf,
 			&ap->comline, "\r\n", "\n", (char *)NULL)) > 0) {
+		printf("read: %s", ap->comline.buf);
 		if((pcret = processCommand(ap, aap)) <= 0) return pcret;
 		/* NOTE: Remaining content in comline will be overwritten
 		 * by getTokenFrom*(). */
