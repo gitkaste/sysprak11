@@ -47,15 +47,15 @@ int main (int argc, char * argv[]){
 	int logfilefd = open (conf.logfile, 
 			O_APPEND|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP);
 	if ( logfilefd == -1) {
-		perror("error opening log file");
+		perror("error opening log file, i won't create a path for you");
 		exit(EXIT_FAILURE);
 	}
-	usedres |= APRES_LOGFD;
 	if (pipe(logfd) == -1) {
 		close(logfilefd);
 		perror("Error creating pipe");
 		exit(EXIT_FAILURE);
 	}
+	usedres |= APRES_LOGFD;
 	switch(logproc = fork()){
 	case -1: 
 		close(logfilefd);
