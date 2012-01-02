@@ -177,8 +177,9 @@ action validateToken(struct buffer *token, struct protocol *prot);
  * sends a reply to the client (including a numerical code)
 */
 int reply(int comfd, int logfd, int semid, int code, const char *msg);
-
-
+int initap(struct actionParameters *ap, char error[256], int logfilefd,
+		int semcount);
+void freeap(struct actionParameters *ap);
 
 /* *************************************************************************** *
  *                                                                             *

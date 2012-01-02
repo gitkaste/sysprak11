@@ -49,4 +49,7 @@ int remArrayItem(struct array *a, unsigned long num);
 void *getArrayItem(struct array *a, unsigned long num);
 void *iterateArray(struct array *a, unsigned long *i);
 
+/* Own def */
+int sperror(char * pref, char * buf, int buflen);
+
 #endif

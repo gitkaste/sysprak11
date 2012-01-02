@@ -1,4 +1,4 @@
-UTILOBJS = util.o writef.o shmem.o semaphores
+UTILOBJS = util.o writef.o shmem.o semaphores.o
 
 OBJS += $(UTILOBJS)
 

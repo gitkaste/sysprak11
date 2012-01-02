@@ -12,6 +12,8 @@
 #include "protocol.h"
 #include "util.h"
 #include "writef.h"
+#include "util_sem_defines.h"
+#include "config.h"
 #include "logger.h"
 #include "tokenizer.h"
 
@@ -70,7 +72,7 @@ int processIncomingData(struct actionParameters *ap,
  * ap->comfd. It tries to find the first "word" in the line, feeds it to
  * validateToken and run the action returned by validateToken.
  * Return Value:
- *    2: if no "word" was found inside the line (means line was empty)
+ *    2: if no "wordh was found inside the line (means line was empty)
  *       this is positive, because we just want to ignore it.
  *    otherwise: return value of the action called
  *               (see note on return values of actions below)
@@ -104,6 +106,84 @@ action validateToken(struct buffer *token, struct protocol *prot) {
 		if(strcasecmp(prot->actions[i].actionName, (char *) token->buf) == 0)
 			return prot->actions[i].actionPtr;
 	}
-	
 	return prot->defaultAction;
+}
+
+/* This function needs to return gracefully! Either it succeeds completely
+ * or rolls back any and every open ressource */
+int initap( struct actionParameters *ap, char error[256], int logfilefd, int semcount){
+	int logfds[2];
+	/***** Setup BUFFERS *****/
+	strncpy(error, "Couldn't create buffers, out of mem", 256);
+	if (createBuf(&(ap->combuf),4096) == -1 )
+		return -1;
+	if ( createBuf(&(ap->comline),4096) == -1 ){
+		freeBuf(&(ap->combuf));
+		return -1;
+	}
+	if (createBuf(&(ap->comword),4096) == -1 ){
+		freeBuf(&(ap->combuf));
+		freeBuf(&(ap->comline));
+		return -1;
+	}
+
+	/***** Setup Semaphores *****/
+	if ( (ap->semid = semCreate(semcount)) == -1 ){
+		sperror("Can't create semaphores", error, 256);
+		goto error1;
+	}
+
+	/***** Setup fifos  *****/
+	// M YLL
+	ap->c2s = mkfifo("/tmp/syprac2s",S_IROTH|S_IWOTH);
+	ap->s2c = mkfifo("/tmp/sypras2c",S_IROTH|S_IWOTH);
+
+	/***** Setup Logging  *****/
+	if (pipe(logfds) == -1) {
+		sperror("Error creating pipe", error, 256);
+		goto error2;
+	}
+
+	ap->sigfd = 0;
+
+	switch(ap->logpid = fork()){
+	case -1: 
+		sperror("Error forking", error, 256);
+		close(logfds[0]);
+		close(logfds[1]);
+		goto error2;
+		exit(2);
+	case 0: /* we are in the child */
+		/* Setting up  */
+		ap->logfd = logfds[0];
+		close(logfds[1]); /* writing end */
+		ap->usedres |= APRES_LOGFD;
+		/* Working */
+		logger(ap->logfd, logfilefd);
+		/* Quitting */
+		freeap(ap);
+		puts("child shutting down");
+		_exit(EXIT_SUCCESS);
+	default: /* we are in the parent */
+		close(logfds[0]);  /* reading end */
+		ap->logfd = logfds[1];
+		ap->usedres |= APRES_LOGFD;
+	}
+	return 1;
+
+error2:
+	semClose(ap->semid);
+error1:
+	freeBuf(&(ap->combuf));
+	freeBuf(&(ap->comword));
+	freeBuf(&(ap->comline));
+	return -1;
+}
+
+void freeap(struct actionParameters *ap){
+	freeBuf(&(ap->combuf));
+	freeBuf(&(ap->comword));
+	freeBuf(&(ap->comline));
+	semClose(ap->semid);
+	if (ap->usedres & APRES_LOGFD) close(ap->logfd);
 }
