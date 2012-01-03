@@ -18,19 +18,19 @@
 
 /***** Setup CONFIG *****/
 int initConf(char * conffilename, struct config *conf, char error[256]){
-	int conffd = open(conffile,O_RDONLY);
+	int conffd = open(conffilename,O_RDONLY);
 	if ( conffd == -1) {
 		sperror("Error opening config file", error, 256);
 		return -1;
 	}
-	confDefaults(&conf);
-	if ( parseConfig(conffd, &conf) == -1 ){
+	confDefaults(conf);
+	if ( parseConfig(conffd, conf) == -1 ){
 		close(conffd);
 		strncpy(error, "Your config has errors, please fix them", 256);
 		return -1;
 	}
 	close(conffd);
-	writeConfig (STDOUT_FILENO, &conf);
+	writeConfig (STDOUT_FILENO, conf);
 	return 1;
 }
 
@@ -51,18 +51,18 @@ int main (int argc, char * argv[]){
 		exit(EXIT_FAILURE);
 	}
 	/***** Setup Logging  *****/
-	*logfilefd = open ( conf->logfilename, O_APPEND|O_CREAT,
+	logfilefd = open ( conf.logfile, O_APPEND|O_CREAT,
 		 	S_IRUSR|S_IWUSR|S_IRGRP );
 
-	if ( *logfilefd == -1 ) {
+	if ( logfilefd == -1 ) {
 		puts("error opening log file, i won't create a path for you");
 		exit(EXIT_FAILURE);
 	}
 
-	initap(ap, error, logfilefd, 2);
+	initap(&ap, error, logfilefd, 2);
 
 	/* Main Client Loop */
-	while (1){ processIncomingData(&ap, (union additionalActionParameters *)&sap); }
-	freeap();
+	while (1){ if ( -1 == processIncomingData(&ap, (union additionalActionParameters *)&sap )) break; }
+	freeap(&ap);
 	exit(EXIT_SUCCESS);
 }
