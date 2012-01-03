@@ -6,6 +6,7 @@
 #include "logger.h"
 #include "util.h"
 #include "writef.h"
+#include "util_sem_defines.h"
 
 int logger(int pipefd, int filefd){
 	ssize_t s, t;
@@ -37,16 +38,17 @@ int logmsg(int semid, int pipefd, int loglevel, const char *fmt, ...){
 	time_t u;
 	struct buffer buf;
 
-	va_list ap;
-	/* BUGBUG insert code here to check for loglevel once it's clear how to get it out of config */
+	va_list argp;
 	u = time(NULL);
 	if ( (t = localtime(&u)) == 0 ) return -1;
 	if ( !(strftime(s, 255, "%c", t)) ) return -1;
-	if ( !(fmt = stringBuilder ("%s - %d: %s", s, getpid(), fmt)) ) return -1;
+	if ( !(fmt=stringBuilder("%s - sev: %d %d: %s", s, loglevel, getpid(), fmt))) 
+		return -1;
 
-	va_start (ap, fmt);
-	ret = vStringBuilder(fmt, ap);
-	va_end(ap);
+	va_start (argp, fmt);
+	ret = vStringBuilder(fmt, argp);
+	free((void *)fmt);
+	va_end(argp);
 	if ( !(ret) )  return -1;
 
 	/* mean hack - bypassing createbuf */
@@ -54,8 +56,13 @@ int logmsg(int semid, int pipefd, int loglevel, const char *fmt, ...){
 	buf.bufmax = strlen(ret) +1;
 	buf.buflen = strlen(ret);
 
+	if (semWait(semid, SEM_LOGGER) ==-1) {
+		freeBuf(&buf);
+		return -1;
+	}
 	ssize_t written = writeBuf(pipefd, &buf);
-	free((void *)fmt);
 	freeBuf(&buf);
+	if (semSignal(semid, SEM_LOGGER) ==-1) return -1;
+
 	return (written > 0) ? 1 : -1;
 }
