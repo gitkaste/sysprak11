@@ -1,8 +1,8 @@
-#include "util_sem_defines.h"
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <stdlib.h>
+#include "util.h"
 
 union semun {
 	int val; 

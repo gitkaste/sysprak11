@@ -29,7 +29,8 @@ void confDefaults(struct config *conf){
 	strcpy(conf->logfile, "tmp/sysprak");
 	conf->loglevel = 1;
 	strcpy(conf->share, "share");
-	conf->shm_size = 0; 
+	/* read from /proc/sys/kernel/shmmax */
+	conf->shm_size = 33554432; 
 }
 
 /* fills the conf with the values from the conf file */

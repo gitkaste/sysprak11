@@ -12,7 +12,6 @@
 #include "protocol.h"
 #include "util.h"
 #include "writef.h"
-#include "util_sem_defines.h"
 #include "config.h"
 #include "logger.h"
 #include "tokenizer.h"

@@ -6,7 +6,6 @@
 #include "logger.h"
 #include "util.h"
 #include "writef.h"
-#include "util_sem_defines.h"
 
 int logger(int pipefd, int filefd){
 	ssize_t s, t;
