@@ -32,6 +32,8 @@ int createPassiveSocket(uint16_t *port){
 	*port = ntohs(servaddr.sin_port);
 	return sockfd;
 }
+
+
 int connectSocket(struct in_addr *ip, uint16_t port){
 	int sockfd;
 	if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < -1 ){
@@ -39,7 +41,6 @@ int connectSocket(struct in_addr *ip, uint16_t port){
 		return -1;
 	}
 	struct sockaddr_in peeraddr;
-	/* bind to wildcard ip (0.0.0.0), i.e. listen on all interfaces */
 	peeraddr.sin_addr.s_addr = ip->s_addr;
 	peeraddr.sin_port = htons(port);
 	peeraddr.sin_family = AF_INET;

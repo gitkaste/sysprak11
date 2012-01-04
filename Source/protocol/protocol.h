@@ -54,9 +54,7 @@
 */
 struct actionParameters { /* elwms */
 	uint32_t usedres; /* Used Resources */
-	int c2s;
-	int s2c;
-	int comfd; /* replaces c2s and s2c when sockets are introduced */
+	int comfd;
 	int semid;
 	int logfd;
 	pid_t logpid;

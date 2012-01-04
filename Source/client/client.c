@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <error.h>
 #include <errno.h>
@@ -5,11 +6,13 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <poll.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <arpa/inet.h>
 #include "config.h"
+#include "connection.h"
 #include "logger.h"
 #include "util.h"
 #include "protocol.h"
@@ -29,7 +32,8 @@ void freecap(struct clientActionParameters* cap){
 int initcap (struct clientActionParameters* cap, char error[256]){
 	int consoleinfd[2], consoleoutfd[2];
 
-	if (pipe(consoleinfd) == -1 || pipe(consoleoutfd) == -1) {
+	if (pipe2(consoleinfd, O_NONBLOCK) == -1 ||
+		 	pipe2(consoleoutfd, O_NONBLOCK) == -1) {
 		sperror("Error creating pipe", error, 256);
 		return -1;
 	}
@@ -129,7 +133,7 @@ int main (int argc, char * argv[]){
 		conf.ip.s_addr = server_ip.s_addr;
 
 	/***** Setup Logging *****/
-	logfilefd = open ( conf.logfile, O_APPEND|O_CREAT,
+	logfilefd = open ( conf.logfile, O_APPEND|O_CREAT|O_NONBLOCK,
 		 	S_IRUSR|S_IWUSR|S_IRGRP );
 
 	if ( logfilefd == -1 ) {
@@ -149,22 +153,68 @@ int main (int argc, char * argv[]){
 		fputs(error, stderr);
 		exit(EXIT_FAILURE);
 	}
+
+	ap.comip = conf.ip;
+	ap.comport = conf.port;
+	if ( (ap.comfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
+		freeap(&ap);
+		freecap(&cap);
+		fputs("error setting up network connection", stderr);
+		exit(EXIT_FAILURE);
+	}
+	ap.usedres |= APRES_COMFD;
+
 		/* Main Client Loop */
 	createBuf(&msg,4096);
 
+	struct pollfd pollfds[2];
+	/* Setting up stuff for Polling */
+	pollfds[0].fd = ap.comfd; /* communication with server */
+	pollfds[0].events = POLLIN;
+	pollfds[0].revents = 0;
+	pollfds[1].fd = cap.infd; /* communication with user */
+	pollfds[1].events = POLLIN;
+	pollfds[1].revents = 0;
+		
 	ssize_t s;
 	while (1){ 
-		s = readToBuf(cap.infd, &msg);
- 	 	if (s  == -2 ) continue;
-		if (s == -1 ){
-			puts("arg");
+		/* should i poll infinitely or a discrete time? */
+		int pollret = poll(pollfds, 2, -1);
+
+		if(pollret < 0 || pollret == 0) {
+			if(errno == EINTR) continue; /* Signals */
+			fprintf(stderr, "POLLING Error.\n");
 			break;
 		}
-		logmsg(0, ap.logfd, LOGLEVEL_VERBOSE, "%s", msg);
-		/* subtract one from the strlen because newlines probably shouldn't count */
-		consolemsg(0, cap.outfd, "wc: %d\n", strlen((char *)msg.buf)-1);
-		puts("end of loop");
+
+		if(pollfds[0].revents & POLLIN) {
+			s = readToBuf(ap.comfd, &msg);
+			if (s  == -2) continue;
+			if (s == -1){
+				puts("arg, shouldn't happen");
+				break;
+			}
+			consolemsg(0, cap.outfd, "wc: %d\n", strlen((char *)msg.buf)-1);
+		} else if(pollfds[1].revents & POLLIN) {
+			s = readToBuf(cap.infd, &msg);
+			if (s  == -2) continue;
+			if (s == -1){
+				puts("arg, shouldn't happen");
+				break;
+			}
+		} else if (pollfds[0].revents & POLLHUP) {
+			/*  server closed connection? */
+			break;
+		} else if (pollfds[1].revents & POLLHUP) {
+			/*  user closed connection - how? */
+			break;
+		} else {
+			fprintf(stderr, "Dunno what to do with this poll");
+			break;
+		}
+		/*logmsg(0, ap.logfd, LOGLEVEL_VERBOSE, "%s", msg);*/
 	}
+	puts("end of loop");
 
 	freeBuf(&msg);
 	freeap(&ap);
@@ -172,5 +222,4 @@ int main (int argc, char * argv[]){
 	if ( waitpid(cap.conpid, NULL, 0) < 0)
 		puts("Did Burpy: Unclean Shutdown - Sorry");
 	exit(EXIT_SUCCESS);
-	return 0; /* Make the compiler happy */
 }

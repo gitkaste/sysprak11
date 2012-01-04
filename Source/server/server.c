@@ -9,11 +9,13 @@
 #include <sys/wait.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
+#include <arpa/inet.h>
 #include "config.h"
 #include "logger.h"
 #include "util.h"
 #include "consoler.h"
 #include "protocol.h"
+#include "connection.h"
 #include "util_sem_defines.h"
 
 int initsap (struct serverActionParameters *sap, char error[256]){
@@ -51,20 +53,20 @@ int main (int argc, char * argv[]){
     }
   }
 
-	if (optind == (argc-1))
+	if ( optind == (argc-1) )
 		conffilename = argv[optind];
 	
-	if (initConf(conffilename, &conf, error) == -1){
+	if ( initConf(conffilename, &conf, error) == -1 ){
 		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}
 
 	/***** Setup Logging  *****/
-	logfilefd = open ( conf.logfile, O_APPEND|O_CREAT,
+	logfilefd = open ( conf.logfile, O_APPEND|O_CREAT|O_NONBLOCK,
 		 	S_IRUSR|S_IWUSR|S_IRGRP );
 
 	if ( logfilefd == -1 ) {
-		fputs("error opening log file, i won't create a path for you",stderr);
+		fputs("error opening log file, i won't create a path for you", stderr);
 		exit(EXIT_FAILURE);
 	}
 
@@ -75,16 +77,35 @@ int main (int argc, char * argv[]){
 	}
 	close(logfilefd);
 
-	if (initsap(&sap, error) == -1) {
+	if (initsap(&sap, error) == -1){
 		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}
 
+	int sockfd;
+	if ( (sockfd = createPassiveSocket(&(conf.port))) == -1){
+		fputs("error setting up network", stderr);
+		exit(EXIT_FAILURE);
+	}
+	
 	/* Main Client Loop */
 	while (1){ 
-		if ( -1 == processIncomingData(&ap, (union additionalActionParameters *)&sap )) 
-			break; 
+		ap.comport = sizeof(ap.comip);
+		ap.comfd = accept(sockfd, (struct sockaddr *) &(ap.comip), (socklen_t *)&(ap.comport));
+		if (ap.comfd == -1)
+			perror("Error accepting a connection");
+		else{
+			char buf[16];
+			fprintf(stderr, "Connection accepted from %s:%d\n",
+					inet_ntop(AF_INET, &ap.comip, buf, sizeof(buf)), 
+					ntohs(ap.comport));
+			if ( -1 == processIncomingData(&ap, (union additionalActionParameters *)&sap )){
+				close(ap.comfd);
+				break; 
+			}
+		}
 	}
+	close(sockfd);
 	freeap(&ap);
 	freesap(&sap);
 	exit(EXIT_SUCCESS);

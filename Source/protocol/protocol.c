@@ -133,16 +133,11 @@ int initap( struct actionParameters *ap, char error[256], int logfilefd, int sem
 	} else
 		ap->usedres |= APRES_SEMID;
 
-	/***** Setup fifos  *****/
-	// MÜLL
-	ap->c2s = mkfifo("/tmp/syprac2s",S_IROTH|S_IWOTH);
-	ap->s2c = mkfifo("/tmp/sypras2c",S_IROTH|S_IWOTH);
-
-	/***** Setup Signalling *****/
+	ap->comfd = 0;
 	ap->sigfd = 0;
 
 	/***** Setup Logging  *****/
-	if (pipe(logfds) == -1) {
+	if (pipe2(logfds, O_NONBLOCK) == -1) {
 		sperror("Error creating pipe", error, 256);
 		goto error;
 	}
