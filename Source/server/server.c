@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/ipc.h>
-#include <sys/sem.h>
+#include <sys/shm.h>
 #include <arpa/inet.h>
 #include "config.h"
 #include "logger.h"
@@ -16,12 +16,27 @@
 #include "consoler.h"
 #include "protocol.h"
 #include "connection.h"
-#include "util_sem_defines.h"
 
-int initsap (struct serverActionParameters *sap, char error[256]){
+int initsap (struct serverActionParameters *sap, char error[256], struct config * conf){
+	int size = conf->shm_size;
+	if ( (sap->shmid_filelist = shmget(IPC_PRIVATE, size, 0)) == -1)
+			return -1;
+	sap->usedres = SAPRES_FILELISTSHMID;
+
+	size -= sizeof(struct array);
+	if (!(sap->filelist = initArray(sizeof(struct flEntry), size, sap->shmid_filelist))){
+		shmctl(sap->shmid_filelist, IPC_RMID, NULL);
+		return -1;	
+	}
+	sap->usedres |= SAPRES_FILELIST;
+
 	return 1;
 }
 void freesap(struct serverActionParameters *sap){
+  if (sap->usedres & SAPRES_FILELIST)
+		freeArray(sap->filelist);
+  if (sap->usedres & SAPRES_FILELISTSHMID)
+		shmctl(sap->shmid_filelist, IPC_RMID, NULL);
 }
 
 void print_usage(char * prog){
@@ -77,7 +92,7 @@ int main (int argc, char * argv[]){
 	}
 	close(logfilefd);
 
-	if (initsap(&sap, error) == -1){
+	if (initsap(&sap, error, &conf) == -1){
 		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}
