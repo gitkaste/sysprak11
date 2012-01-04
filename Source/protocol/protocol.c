@@ -180,10 +180,10 @@ error:
 }
 
 void freeap(struct actionParameters *ap){
-	if (ap->usedres & APRES_COMBUf)  freeBuf(&(ap->combuf));
+	if (ap->usedres & APRES_COMBUF)  freeBuf(&(ap->combuf));
 	if (ap->usedres & APRES_COMWORD) freeBuf(&(ap->comword));
 	if (ap->usedres & APRES_COMLINE) freeBuf(&(ap->comline));
-	if (ap->usedres & APRES_SEMID)   semclose(ap->semid);
+	if (ap->usedres & APRES_SEMID)   semClose(ap->semid);
 	if (ap->usedres & APRES_LOGFD)   close(ap->logfd);
 	if (ap->usedres & APRES_SIGFD)   close(ap->sigfd);
 }

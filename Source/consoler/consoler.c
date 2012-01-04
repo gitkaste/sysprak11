@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <poll.h>
+#include <util_sem_defines.h>
 
 #include <errno.h>
 
