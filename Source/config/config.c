@@ -52,6 +52,7 @@ int parseConfig (int conffd, struct config *conf){
 			if (getTokenFromBuffer(&line, &value, "\t", " ", NULL) != 1) break;
 
 			/* BUGBUG Theoretically errno needs to be checked after every strtol */
+			/* BUGBUG ERROR checking! */
 			/*** IP ***/
 			if (!strncmp((char *)key.buf, "ip", key.buflen)){
 				inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->ip));

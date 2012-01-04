@@ -20,7 +20,7 @@
 int initConf(char * conffilename, struct config *conf, char error[256]){
 	int conffd = open(conffilename,O_RDONLY);
 	if ( conffd == -1) {
-		sperror("Error opening config file", error, 256);
+		sperror("Error opening config file:\n", error, 256);
 		return -1;
 	}
 	confDefaults(conf);
@@ -40,41 +40,61 @@ int initsap (struct serverActionParameters *sap, char error[256]){
 void freesap(struct serverActionParameters *sap){
 }
 
+void print_usage(char * prog){
+	fprintf(stderr, 
+		"Usage: %s [[-c] config filename]\n"
+"Config file is assumed to be ./server.conf if the value isn't given.\n",
+		prog);
+}
+
 int main (int argc, char * argv[]){
 	char error[256];
 	/* in and out fds are seen as from the clients view point */
 	int logfilefd;
 	struct config conf;
+	char * conffilename = "server.conf";
 	struct actionParameters ap;
 	struct serverActionParameters sap;
 	const int numsems = 2;
+	int opt;
 
-	if (argc < 2) {
-		puts("please provide the name of the config file");
+  while ((opt = getopt(argc, argv, "ipc")) != -1) {
+		switch (opt) {
+			case 'c':
+				conffilename = optarg;
+        break;
+      default: /*  '?' */
+				print_usage(argv[0]);
+        exit(EXIT_FAILURE);
+    }
+  }
+
+	if (optind == (argc-1))
+		conffilename = argv[optind];
+	
+	if (initConf(conffilename, &conf, error) == -1){
+		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}
-	if (initConf(argv[1], &conf, error) == -1){
-		puts(error);
-		exit(EXIT_FAILURE);
-	}
+
 	/***** Setup Logging  *****/
 	logfilefd = open ( conf.logfile, O_APPEND|O_CREAT,
 		 	S_IRUSR|S_IWUSR|S_IRGRP );
 
 	if ( logfilefd == -1 ) {
-		puts("error opening log file, i won't create a path for you");
+		fputs("error opening log file, i won't create a path for you",stderr);
 		exit(EXIT_FAILURE);
 	}
 
 	if (initap(&ap, error, logfilefd, numsems) == -1) {
 		close(logfilefd);
-		puts(error);
+		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}
 	close(logfilefd);
 
 	if (initsap(&sap, error) == -1) {
-		puts(error);
+		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}
 
