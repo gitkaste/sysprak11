@@ -31,6 +31,7 @@ void freeBuf(struct buffer *buf){
 	buf->bufmax = 0;
 	buf->buflen = 0;
 	free(buf->buf);
+	buf->buf = NULL;
 }
 ssize_t writeWrapper (int fd, const void *bufv, size_t count){
 	char * buf = (char *) bufv;

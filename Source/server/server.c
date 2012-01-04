@@ -34,13 +34,20 @@ int initConf(char * conffilename, struct config *conf, char error[256]){
 	return 1;
 }
 
+int initsap (struct serverActionParameters *sap, char error[256]){
+	return 1;
+}
+void freesap(struct serverActionParameters *sap){
+}
+
 int main (int argc, char * argv[]){
-	struct config conf;
 	char error[256];
 	/* in and out fds are seen as from the clients view point */
 	int logfilefd;
+	struct config conf;
 	struct actionParameters ap;
 	struct serverActionParameters sap;
+	const int numsems = 2;
 
 	if (argc < 2) {
 		puts("please provide the name of the config file");
@@ -59,10 +66,24 @@ int main (int argc, char * argv[]){
 		exit(EXIT_FAILURE);
 	}
 
-	initap(&ap, error, logfilefd, 2);
+	if (initap(&ap, error, logfilefd, numsems) == -1) {
+		close(logfilefd);
+		puts(error);
+		exit(EXIT_FAILURE);
+	}
+	close(logfilefd);
+
+	if (initsap(&sap, error) == -1) {
+		puts(error);
+		exit(EXIT_FAILURE);
+	}
 
 	/* Main Client Loop */
-	while (1){ if ( -1 == processIncomingData(&ap, (union additionalActionParameters *)&sap )) break; }
+	while (1){ 
+		if ( -1 == processIncomingData(&ap, (union additionalActionParameters *)&sap )) 
+			break; 
+	}
 	freeap(&ap);
+	freesap(&sap);
 	exit(EXIT_SUCCESS);
 }

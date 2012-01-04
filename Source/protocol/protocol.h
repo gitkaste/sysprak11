@@ -93,6 +93,7 @@ struct serverActionParameters {
 struct clientActionParameters {
 	uint32_t usedres; /* Used Resources */
 	int outfd; /* Consoler */
+	int infd; /* Consoler */
 	pid_t conpid;
 	int shmid_results;
 	struct array *results;

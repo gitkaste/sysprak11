@@ -117,41 +117,42 @@ int initap( struct actionParameters *ap, char error[256], int logfilefd, int sem
 	strncpy(error, "Couldn't create buffers, out of mem", 256);
 	if (createBuf(&(ap->combuf),4096) == -1 )
 		return -1;
-	if ( createBuf(&(ap->comline),4096) == -1 ){
-		freeBuf(&(ap->combuf));
-		return -1;
-	}
-	if (createBuf(&(ap->comword),4096) == -1 ){
-		freeBuf(&(ap->combuf));
-		freeBuf(&(ap->comline));
-		return -1;
-	}
+	else ap->usedres = APRES_COMBUF;
+	if ( createBuf(&(ap->comline),4096) == -1 )
+		goto error;
+	else ap->usedres |= APRES_COMLINE;
+	
+	if (createBuf(&(ap->comword),4096) == -1 )
+		goto error;
+	else ap->usedres |= APRES_COMWORD;
 
 	/***** Setup Semaphores *****/
 	if ( (ap->semid = semCreate(semcount)) == -1 ){
 		sperror("Can't create semaphores", error, 256);
-		goto error1;
-	}
+		goto error;
+	} else
+		ap->usedres |= APRES_SEMID;
 
 	/***** Setup fifos  *****/
-	// M YLL
+	// MÜLL
 	ap->c2s = mkfifo("/tmp/syprac2s",S_IROTH|S_IWOTH);
 	ap->s2c = mkfifo("/tmp/sypras2c",S_IROTH|S_IWOTH);
+
+	/***** Setup Signalling *****/
+	ap->sigfd = 0;
 
 	/***** Setup Logging  *****/
 	if (pipe(logfds) == -1) {
 		sperror("Error creating pipe", error, 256);
-		goto error2;
+		goto error;
 	}
-
-	ap->sigfd = 0;
 
 	switch(ap->logpid = fork()){
 	case -1: 
 		sperror("Error forking", error, 256);
 		close(logfds[0]);
 		close(logfds[1]);
-		goto error2;
+		goto error;
 		exit(2);
 	case 0: /* we are in the child */
 		/* Setting up  */
@@ -160,30 +161,29 @@ int initap( struct actionParameters *ap, char error[256], int logfilefd, int sem
 		ap->usedres |= APRES_LOGFD;
 		/* Working */
 		logger(ap->logfd, logfilefd);
+		close(logfilefd);
 		/* Quitting */
 		freeap(ap);
 		puts("child shutting down");
 		_exit(EXIT_SUCCESS);
 	default: /* we are in the parent */
+		close(logfilefd);
 		close(logfds[0]);  /* reading end */
 		ap->logfd = logfds[1];
 		ap->usedres |= APRES_LOGFD;
 	}
 	return 1;
 
-error2:
-	semClose(ap->semid);
-error1:
-	freeBuf(&(ap->combuf));
-	freeBuf(&(ap->comword));
-	freeBuf(&(ap->comline));
+error:
+	freeap(ap);
 	return -1;
 }
 
 void freeap(struct actionParameters *ap){
-	freeBuf(&(ap->combuf));
-	freeBuf(&(ap->comword));
-	freeBuf(&(ap->comline));
-	semClose(ap->semid);
-	if (ap->usedres & APRES_LOGFD) close(ap->logfd);
+	if (ap->usedres & APRES_COMBUf)  freeBuf(&(ap->combuf));
+	if (ap->usedres & APRES_COMWORD) freeBuf(&(ap->comword));
+	if (ap->usedres & APRES_COMLINE) freeBuf(&(ap->comline));
+	if (ap->usedres & APRES_SEMID)   semclose(ap->semid);
+	if (ap->usedres & APRES_LOGFD)   close(ap->logfd);
+	if (ap->usedres & APRES_SIGFD)   close(ap->sigfd);
 }
