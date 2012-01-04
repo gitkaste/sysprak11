@@ -7,7 +7,7 @@
 
 int createPassiveSocket(uint16_t *port){
 	int sockfd;
-	if ( (sockfd = socket(AF_INET, SOCK_STREAM|O_NONBLOCK, 0)) < -1 ){
+	if ( (sockfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0)) < -1 ){
 		perror("couldn't attach to socket, damn");
 		return -1;
 	}
@@ -36,7 +36,7 @@ int createPassiveSocket(uint16_t *port){
 
 int connectSocket(struct in_addr *ip, uint16_t port){
 	int sockfd;
-	if ( (sockfd = socket(AF_INET, SOCK_STREAM|O_NONBLOCK, 0)) < -1 ){
+	if ( (sockfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0)) < -1 ){
 		perror("couldn't attach to socket, damn");
 		return -1;
 	}

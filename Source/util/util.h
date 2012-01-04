@@ -1,6 +1,9 @@
 #ifndef _util_h
 #define _util_h
 #include <sys/types.h>
+#include <inttypes.h>
+#include <arpa/inet.h>
+#include <stdio.h>
 
 struct buffer {
 	unsigned char *buf;
@@ -49,7 +52,32 @@ int remArrayItem(struct array *a, unsigned long num);
 void *getArrayItem(struct array *a, unsigned long num);
 void *iterateArray(struct array *a, unsigned long *i);
 
+/* struct flEntry
+ * Represents a file in the network.
+*/
+struct flEntry {
+	struct in_addr ip;
+	uint16_t port;
+	char filename[FILENAME_MAX];
+	unsigned long size;
+};
+
+
 /* Own def */
 int sperror(char * pref, char * buf, int buflen);
+
+/* Semaphore defines */
+/* General */
+#define SEM_LOGGER 0
+/* Server */
+#define SEM_FILELIST 1
+/* Client */
+#define SEM_CONSOLER 1
+#define SEM_RESULTS 2
+int semCreate(int num);
+int semWait(int semid, int semnum);
+int semSignal(int semid, int semnum);
+int semVal(int semid, int semnum);
+void semClose(int semgroupid);
 
 #endif
