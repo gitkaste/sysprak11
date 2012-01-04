@@ -10,6 +10,7 @@
 #include "config.h"
 #include "logger.h"
 #include "util.h"
+#include "protocol.h"
 #include "consoler.h"
 
 /***** Setup CONFIG *****/
@@ -28,6 +29,17 @@ int initConf(char * conffilename, struct config *conf, char error[256]){
 	close(conffd);
 	writeConfig (STDOUT_FILENO, conf);
 	return 1;
+}
+
+void freecap(struct clientActionParameters* cap){
+	if (cap->usedres & CAPRES_OUTFD){
+		close(cap->outfd);
+		close(cap->infd);
+	}
+	if (cap->usedres & CAPRES_RESULTSSHMID);
+	if (cap->usedres & CAPRES_RESULTS)      freeArray(cap->results);
+	if (cap->usedres & CAPRES_SERVERFD)     close (cap->serverfd);
+	if (cap->usedres & CAPRES_CPA)          freeArray(cap->cpa);
 }
 
 int initcap (struct clientActionParameters* cap, char error[256]){
@@ -52,7 +64,7 @@ int initcap (struct clientActionParameters* cap, char error[256]){
 		close(consoleinfd[0]);  /* reading end of pipe fed from stdin*/
 		cap->infd = consoleinfd[1];
 		cap->outfd = consoleoutfd[0];
-		cap->usedres &= APRES;
+		cap->usedres &= CAPRES_OUTFD;
 		/* Notation in the consoler function is reversed! */
 		/* outfd: Prog->Consoler->STDOUT*/
 		/* infd: STDIN->Consoler->Prog*/
@@ -64,22 +76,19 @@ int initcap (struct clientActionParameters* cap, char error[256]){
 		close(consoleinfd[1]); /* writing end of the pipe feeding us stdin */
 		cap->infd = consoleinfd[0];
 		cap->outfd = consoleoutfd[1];
-		cap->usedres &= APRES;
+		cap->usedres &= CAPRES_OUTFD;
 	}
-}
-
-void freecap(struct clientActionParameters* cap){
-	if (usedres & CAPRES_OUTFD)        close(cap->outfd);
-	if (usedres & CAPRES_RESULTSSHMID);
-	if (usedres & CAPRES_RESULTS)      freeArray(cap->results);
-	if (usedres & CAPRES_SERVERFD)     close (cap->serverfd);
-	if (usedres & CAPRES_CPA)          freeArray(cap->cpa);)
+	return 1;
 }
 
 int main (int argc, char * argv[]){
+	int logfilefd;
 	struct config conf;
 	const int numsems = 3;
+	struct actionParameters ap;
+	struct clientActionParameters cap;
 	struct buffer msg;
+	char error[256];
 
 	/***** Setup CONFIG *****/
 	if (argc < 2) {
@@ -104,6 +113,7 @@ int main (int argc, char * argv[]){
 	close(logfilefd);
 
 	if (initcap(&cap, error) == -1){
+		freeap(&ap);
 		puts(error);
 		exit(EXIT_FAILURE);
 	}
@@ -112,26 +122,23 @@ int main (int argc, char * argv[]){
 
 	ssize_t s;
 	while (1){ 
-		s = readToBuf(consoleinfd[0], &msg);
+		s = readToBuf(cap.infd, &msg);
  	 	if (s  == -2 ) continue;
 		if (s == -1 ){
 			puts("arg");
 			break;
 		}
-		logmsg(0, logfd[1], LOGLEVEL_VERBOSE, "%s", msg);
+		logmsg(0, ap.logfd, LOGLEVEL_VERBOSE, "%s", msg);
 		/* subtract one from the strlen because newlines probably shouldn't count */
-		consolemsg(0, consoleoutfd[1], "wc: %d\n", strlen((char *)msg.buf)-1);
+		consolemsg(0, cap.outfd, "wc: %d\n", strlen((char *)msg.buf)-1);
 		puts("end of loop");
 	}
 
 	freeBuf(&msg);
 	freeap(&ap);
 	freecap(&cap);
-	if ( waitpid(consoleproc, NULL, 0) < 0)
+	if ( waitpid(cap.conpid, NULL, 0) < 0)
 		puts("Did Burpy: Unclean Shutdown - Sorry");
 	exit(EXIT_SUCCESS);
-
-error1:
-	freeap(&ap);
-	exit(EXIT_FAILURE);
+	return 0; /* Make the compiler happy */
 }
