@@ -16,24 +16,6 @@
 #include "protocol.h"
 #include "util_sem_defines.h"
 
-/***** Setup CONFIG *****/
-int initConf(char * conffilename, struct config *conf, char error[256]){
-	int conffd = open(conffilename,O_RDONLY);
-	if ( conffd == -1) {
-		sperror("Error opening config file:\n", error, 256);
-		return -1;
-	}
-	confDefaults(conf);
-	if ( parseConfig(conffd, conf) == -1 ){
-		close(conffd);
-		strncpy(error, "Your config has errors, please fix them", 256);
-		return -1;
-	}
-	close(conffd);
-	writeConfig (STDOUT_FILENO, conf);
-	return 1;
-}
-
 int initsap (struct serverActionParameters *sap, char error[256]){
 	return 1;
 }

@@ -17,3 +17,4 @@ struct config {
 void confDefaults(struct config *conf);
 int parseConfig (int conffd, struct config *conf);
 int writeConfig (int fd, struct config *conf);
+int initConf(char * conffilename, struct config *conf, char error[256]);
