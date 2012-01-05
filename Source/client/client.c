@@ -13,9 +13,11 @@
 #include <arpa/inet.h>
 #include "config.h"
 #include "connection.h"
+#include "tokenizer.h"
 #include "logger.h"
 #include "util.h"
 #include "protocol.h"
+#include "client_protocol.h"
 #include "consoler.h"
 
 void freecap(struct clientActionParameters* cap){
@@ -77,6 +79,78 @@ void print_usage(char * prog){
 		prog);
 }
 
+int processCode(int code, struct actionParameters *ap, 
+		union additionalActionParameters *aap){
+	switch (code){
+		case REP_OK: 
+			return consolemsg(ap->semid, aap->cap->outfd, "OK");
+		case REP_TEXT: 
+			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf, 
+					ap->comline.buflen);
+		case REP_COMMAND: 
+			return processCommand(ap, aap);
+		case REP_WARN: 
+			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf, 
+					ap->comline.buflen);
+		case REP_FATAL: 
+			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf, 
+					ap->comline.buflen);
+			return -1;
+		default:
+			fprintf(stderr,"Unknown class of Code found in protocol");
+			return -1;
+	}
+}
+
+int processServerReply(struct actionParameters *ap, 
+		union additionalActionParameters *aap){
+	int gtfsret, pcret;
+
+	switch (readToBuf(ap->comfd, &(ap->combuf))){
+		case -2:
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
+					"FATAL (processServerReply): read error.\n");
+			return -1;
+		case -1:
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, 
+					"WARNING (processServerReply): EINTR/EAGAIN.\n");
+			return 1;
+		case 0:
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, 
+					"(processIncomingData) ap->comfd closed.\n");
+			return 1;
+	}
+	/* Split into lines */
+	while((gtfsret = getTokenFromStreamBuffer( &ap->combuf,
+			&ap->comline, "\r\n", "\n", (char *)NULL)) > 0) {
+		fprintf(stderr,"read: %s", ap->comline.buf);
+		/* Split into tokens */
+		switch (getTokenFromBuffer( &ap->comline, &ap->comword, " ", "\t", NULL )) {
+		case -1:
+			logmsg( ap->semid, ap->logfd, LOGLEVEL_FATAL, 
+				"FATAL: getTokenFromBuffer() failed in processServerReply.\n" );
+			return -1;
+		case 0:	
+			return 2; /* command was empty */
+		case 1:
+			errno=0;
+			/* Split into tokens */
+			int code = strtol( (char *) ap->comword.buf, NULL, 10);
+			if ( errno || code<REP_OK || code>REP_FATAL || code%100 ) return -1;
+			if ( (pcret = processCode(code, ap, aap)) <= 0 ) return pcret;
+		default:
+			logmsg( ap->semid, ap->logfd, LOGLEVEL_WARN,
+				"WARN: getTokenFromBuffer() gave unknown return.\n" );
+			return -1;
+		}
+	}
+	if(gtfsret < 0) { /* token buffer too small */
+		return gtfsret;
+	}
+	/* this is the gtfsret=0 branch */
+	return 1;
+}
+
 int main (int argc, char * argv[]){
 	int logfilefd;
 	struct config conf;
@@ -86,9 +160,14 @@ int main (int argc, char * argv[]){
 	const int numsems = 3;
 	struct actionParameters ap;
 	struct clientActionParameters cap;
+	union additionalActionParameters aap;
+	aap.cap = &cap;
 	struct buffer msg;
 	char error[256];
 	int opt;
+#define EXIT_NO (EXIT_FAILURE * 2+3)
+	int pSRret, shellReturn=EXIT_NO;
+
 
 	server_ip.s_addr = 0;
 
@@ -147,6 +226,7 @@ int main (int argc, char * argv[]){
 		exit(EXIT_FAILURE);
 	}
 	close(logfilefd);
+	initializeClientProtocol(&ap);
 
 	if (initcap(&cap, error) == -1){
 		freeap(&ap);
@@ -181,21 +261,29 @@ int main (int argc, char * argv[]){
 		/* should i poll infinitely or a discrete time? */
 		int pollret = poll(pollfds, 2, -1);
 
-		if(pollret < 0 || pollret == 0) {
-			if(errno == EINTR) continue; /* Signals */
+		if (pollret < 0 || pollret == 0) {
+			if (errno == EINTR) continue; /* Signals */
 			fprintf(stderr, "POLLING Error.\n");
+			shellReturn = EXIT_FAILURE;
 			break;
 		}
 
-		if(pollfds[0].revents & POLLIN) {
-			s = readToBuf(ap.comfd, &msg);
-			if (s  == -2) continue;
-			if (s == -1){
-				puts("arg, shouldn't happen");
-				break;
+		if(pollfds[0].revents & POLLIN) {    /* Server greets us */
+		 	switch (pSRret = processServerReply(&ap,&aap)){
+				case -3:
+				case -1:
+					shellReturn = EXIT_FAILURE;
+					break;
+				case -2:
+				case 0: 
+					shellReturn = EXIT_SUCCESS;
+					break;
+				default: 
+					if (pSRret ==0) continue;
+					fprintf(stderr, "WTF did processServerReply just return: %d?",pSRret);
+					shellReturn = EXIT_FAILURE;
 			}
-			consolemsg(0, cap.outfd, "wc: %d\n", strlen((char *)msg.buf)-1);
-		} else if(pollfds[1].revents & POLLIN) {
+		} else if(pollfds[1].revents & POLLIN) { /* User commands us */
 			s = readToBuf(cap.infd, &msg);
 			if (s  == -2) continue;
 			if (s == -1){
@@ -204,14 +292,15 @@ int main (int argc, char * argv[]){
 			}
 		} else if (pollfds[0].revents & POLLHUP) {
 			/*  server closed connection? */
-			break;
+			shellReturn = EXIT_SUCCESS;
 		} else if (pollfds[1].revents & POLLHUP) {
 			/*  user closed connection - how? */
-			break;
+			shellReturn = EXIT_SUCCESS;
 		} else {
 			fprintf(stderr, "Dunno what to do with this poll");
-			break;
+			shellReturn = EXIT_FAILURE;
 		}
+		if (shellReturn != EXIT_NO) break;
 		/*logmsg(0, ap.logfd, LOGLEVEL_VERBOSE, "%s", msg);*/
 	}
 	puts("end of loop");
@@ -219,7 +308,10 @@ int main (int argc, char * argv[]){
 	freeBuf(&msg);
 	freeap(&ap);
 	freecap(&cap);
-	if ( waitpid(cap.conpid, NULL, 0) < 0)
+	if ( waitpid(cap.conpid, NULL, 0) < 0){
 		puts("Did Burpy: Unclean Shutdown - Sorry");
-	exit(EXIT_SUCCESS);
+		exit(shellReturn);
+	}
+
+	exit(shellReturn);
 }

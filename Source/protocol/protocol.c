@@ -88,8 +88,7 @@ int processCommand(struct actionParameters *ap,
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "FATAL: "
 			"getTokenFromBuffer() failed in processCommand.\n");
 		return gtfbret;
-	}
-	else if (gtfbret == 0) return 2; /* command was empty */
+	} else if (gtfbret == 0) return 2; /* command was empty */
 	/* find (validate) and run the action and return its return value */
 	return (*validateToken(&ap->comword, ap->prot)) (ap, aap);
 }
@@ -110,7 +109,7 @@ action validateToken(struct buffer *token, struct protocol *prot) {
 
 /* This function needs to return gracefully! Either it succeeds completely
  * or rolls back any and every open ressource */
-int initap( struct actionParameters *ap, char error[256], int logfilefd, int semcount){
+int initap(struct actionParameters *ap, char error[256], int logfilefd, int semcount){
 	int logfds[2];
 	/***** Setup BUFFERS *****/
 	strncpy(error, "Couldn't create buffers, out of mem", 256);

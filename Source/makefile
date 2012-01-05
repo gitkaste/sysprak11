@@ -10,4 +10,4 @@ clean test:
 
 server client: 
 	$(MAKE) -C $@ $@
-	cp $@/$@  .
+	#cp $@/$@  .
