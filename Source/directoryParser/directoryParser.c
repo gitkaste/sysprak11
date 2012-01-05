@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include "directoryParser.h"
 #include "util.h"
-#include "writef.h"
 
 char * path_join(const char * basedir, const char * subdir){
 	char * fulldirname = malloc(strlen(basedir) + strlen(subdir) +2);

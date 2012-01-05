@@ -5,7 +5,6 @@
 #include <time.h>
 #include "logger.h"
 #include "util.h"
-#include "writef.h"
 
 int logger(int pipefd, int filefd){
 	ssize_t s, t;

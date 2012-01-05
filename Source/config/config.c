@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include "tokenizer.h"
 #include "config.h"
-#include "writef.h"
 
 /* This is a gnu extension but it's safer 
 #define Min(X, Y) do { 

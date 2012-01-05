@@ -30,13 +30,12 @@
 #include <errno.h>
 #include "protocol.h"
 #include "server_protocol.h"
-#include "../util/util.h"
-#include "../logger/logger.h"
-#include "../tokenizer/tokenizer.h"
-#include "../connection/connection.h"
-#include "../directoryParser/directoryParser.h"
+#include "util.h"
+#include "logger.h"
+#include "tokenizer.h"
+#include "connection.h"
+#include "directoryParser.h"
 
-#include "../util/writef.h"
 /*#include "../util/signalfd.h"*/
 
 struct protocol server_protocol = {
