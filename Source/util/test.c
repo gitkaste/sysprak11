@@ -1,7 +1,10 @@
-#include "util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include "util.h"
 
 #define LOG(x) do {puts(x); fflush(stdout);} while(0)
 
@@ -29,16 +32,22 @@ void test_buffers(){
 	LOG("freed buf2");
 	writef(STDOUT_FILENO, "testing writef with 1st buffer: %s", buf.buf);
 }
-void test_arrays(){
+
+void test_arrays(int shmid){
 	unsigned long i;
 	unsigned long * pi;
 	unsigned long counter;
 
-	struct array *a = initArray(sizeof(i), sizeof(i) * 8, -1);
+	errno =0;
+	perror("errno test");
+	struct array *a = initArray(sizeof(i), sizeof(i) * 8, shmid);
+	if (!a){
+		perror("Array creation failed");
+		return;
+	}
 	LOG("created array");
-
 	for (counter = 1; counter< 7; counter++){
-		if (!addArrayItem( a, &counter)){
+		if (!addArrayItem( a,&counter)){
 			printf("failed adding %ldth item", counter);
 			break;
 		}
@@ -71,7 +80,24 @@ void test_arrays(){
 	freeArray(a);
 	LOG("freed Array");
 }
+
+void test_semaphores(){
+	int semid = semCreate(4);
+	printf("%d ",semid);
+	perror("sem");
+	LOG("created semaphores");
+	printf("%d ",semVal(semid, 1));
+	perror("sem");
+	LOG("asked semaphores");
+	semSignal(semid, 1);
+}
+
 int main(int argc, char * argv[]){
-	test_buffers();
-	test_arrays();
+	//test_buffers();
+	test_arrays(-1);
+	LOG("creating shared mem");
+	int shmid = shmget(SHM_KEY, 1024, IPC_CREAT|0666);
+	fprintf(stderr, "%d\n", shmid);
+	test_arrays(shmid);
+	//test_semaphores();
 }

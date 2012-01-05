@@ -145,7 +145,6 @@ int initap(struct actionParameters *ap, char error[256], int logfilefd, int semc
 		close(logfds[0]);
 		close(logfds[1]);
 		goto error;
-		exit(2);
 	case 0: /* we are in the child */
 		/* Setting up  */
 		ap->logfd = logfds[0];
@@ -156,7 +155,7 @@ int initap(struct actionParameters *ap, char error[256], int logfilefd, int semc
 		close(logfilefd);
 		/* Quitting */
 		freeap(ap);
-		puts("child shutting down");
+		fputs("child shutting down",stderr);
 		_exit(EXIT_SUCCESS);
 	default: /* we are in the parent */
 		close(logfilefd);
@@ -165,6 +164,7 @@ int initap(struct actionParameters *ap, char error[256], int logfilefd, int semc
 		ap->usedres |= APRES_LOGFD;
 	}
 	return 1;
+	fprintf(stderr, "I really shouldn't be here alone after dark");
 
 error:
 	freeap(ap);

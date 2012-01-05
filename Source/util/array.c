@@ -9,11 +9,15 @@ struct array *initArray(size_t itemsize, size_t initial_size, int shmid){
 	int totalmemsize = sizeof(struct array) + initial_size;
 	if (shmid == -1){
 		arr = malloc(totalmemsize);
+		if (!arr) return arr;
 	} else {
 		arr = shmat(shmid, NULL, 0);
+		if (arr == (void *) -1) return NULL;
 	}
-	if (!arr) return arr;
+	fprintf(stderr, "arr: %p itemsize %d size %d shmid %d\n", (void *)arr, itemsize, initial_size, shmid);
 	arr->mem = arr + sizeof(struct array);
+	fprintf(stderr, "arr: %p itemsize %d size %d shmid %d\n", (void *)arr, itemsize, initial_size, shmid);
+fflush(stderr);
 	arr->memsize = initial_size;
 	arr->itemsize = itemsize;
 	arr->itemcount = 0;
@@ -31,6 +35,7 @@ void freeArray(struct array *a){
 }
 
 struct array *addArrayItem (struct array *a, void *item){
+	fprintf(stderr, "Array pointer %p\n", (void *)a);
 	if (!(a->memsize >= a->itemsize * (a->itemcount + 1))){
 		if (a->shmid == -1){
 			void *newmem = realloc(a->mem, sizeof(struct array)+ a->itemsize*(a->itemcount + 10));
