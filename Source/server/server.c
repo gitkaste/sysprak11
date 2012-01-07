@@ -59,20 +59,21 @@ int comfork(struct actionParameters *ap,
   struct signalfd_siginfo fdsi;
   ssize_t SRret;
 
-	if (ap.comfd == -1)
+	if (ap->comfd == -1){
 		perror("Error accepting a connection");
-	else{
+		return -3;
+	}else{
 		char buf[16];
 		fprintf(stderr, "Connection accepted from %s:%d\n",
-				inet_ntop(AF_INET, &ap.comip, buf, sizeof(buf)), 
-				ntohs(ap.comport));
+				inet_ntop(AF_INET, &ap->comip, buf, sizeof(buf)), 
+				ntohs(ap->comport));
 		/* BUGBUG: Hier muss gepolled werden. */
 
 		/* Setting up stuff for Polling */
-		pollfds[0].fd = ap.comfd;    /* data incoming from client */
+		pollfds[0].fd = ap->comfd;    /* data incoming from client */
 		pollfds[0].events = POLLIN;
 		pollfds[0].revents = 0;
-		pollfds[1].fd = ap.sigfd; /* communication with signalfd */
+		pollfds[1].fd = ap->sigfd; /* communication with signalfd */
 		pollfds[1].events = POLLIN;
 		pollfds[1].revents = 0;
 
@@ -82,27 +83,30 @@ int comfork(struct actionParameters *ap,
 			if (pollret < 0 || pollret == 0) {
 				if (errno == EINTR) continue; /* Signals */
 				fprintf(stderr, "POLLING Error.\n");
-				shellReturn = EXIT_FAILURE;
-				break;
+				return -3;
 			}
-		if(pollfds[0].revents & POLLIN) {    /* incoming client */
 
-			return (processIncomingData(&ap, (union additionalActionParameters *)&sap ))
-		} else if(pollfds[1].revents & POLLIN) { /* incoming signal */
-			SRret = read(ap.sigfd, &fdsi, sizeof(struct signalfd_siginfo));
-			if (SRret != sizeof(struct signalfd_siginfo)){
-				fprintf(stderr, "signalfd returned something broken");
-				shellReturn = EXIT_FAILURE;
+			if(pollfds[0].revents & POLLIN) {    /* incoming client */
+
+				return (processIncomingData(ap, aap));
+			} else if(pollfds[1].revents & POLLIN) { /* incoming signal */
+				SRret = read(ap->sigfd, &fdsi, sizeof(struct signalfd_siginfo));
+				if (SRret != sizeof(struct signalfd_siginfo)){
+					fprintf(stderr, "signalfd returned something broken");
+					return -3;
+				}
+				switch(fdsi.ssi_signo){
+					case SIGINT:
+					case SIGQUIT:
+						return -2; /*?*/
+				}
+			} else {
+				fprintf(stderr, "Dunno what to do with this poll");
+				return -3;
 			}
-			switch(fdsi.ssi_signo){
-				case SIGINT:
-				case SIGQUIT:
-					return 0; /*?*/
-		} else {
-			fprintf(stderr, "Dunno what to do with this poll");
-			return -1;
 		}
 	}
+		return -2;
 }
 
 
@@ -113,8 +117,9 @@ int main (int argc, char * argv[]){
 	char * conffilename = "server.conf";
 	struct actionParameters ap;
 	struct serverActionParameters sap;
+	union additionalActionParameters aap;
 	const int numsems = 2;
-	int opt;
+	int opt, forkret,comret;
 	sigset_t mask;
   struct signalfd_siginfo fdsi;
   ssize_t SRret;
@@ -140,11 +145,9 @@ int main (int argc, char * argv[]){
 	}
 
 	if (initap(&ap, error, &conf, numsems) == -1) {
-		close(logfilefd);
 		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}
-	close(logfilefd);
 
 	if (initsap(&sap, error, &conf) == -1){
 		freeap(&ap);
@@ -207,7 +210,8 @@ int main (int argc, char * argv[]){
 						fputs("error getting a signal fd", stderr);
 						_exit(EXIT_FAILURE);
 					} else {
-						comret = comfork(&ap, &sap);
+						aap.sap = &sap;
+						comret = comfork(&ap, &aap);
 						/*BUGBUG*/
 						/* Do i need to do more */
 						_exit(comret);

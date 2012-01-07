@@ -28,6 +28,7 @@
 #include <arpa/inet.h>
 #include <inttypes.h>
 #include <errno.h>
+#include <string.h>
 #include "protocol.h"
 #include "server_protocol.h"
 #include "util.h"
@@ -43,7 +44,7 @@ struct protocol server_protocol = {
 	3,
 	{
 		{"STATUS", "STATUS returns Server-Status.\n", &statusAction},
-		{"QUIT", "QUIT closes the connection cleanly (probably).\n",
+		{"QUIT", "QUIT closes the connection cleanly (probably).\n", &quitAction},
 		{"SEARCH", "SEARCH file to crawl the filelist).\n", &searchAction},
 		{"HELP", "HELP prints this help.\n", &helpAction}
 	}
@@ -97,7 +98,7 @@ int searchAction(struct actionParameters *ap,
 			return -1;
 		case 0:
 			if (writef(sockfd, "%d RESULT SOCKET %d", REP_COMMAND, port) < 0) return -2;
-			return  (sendResult(sockfd, ap, aap) == 1) ? -2 : -3;
+			return  (sendResult(sockfd, ap, aap->sap) == 1) ? -2 : -3;
 		default:
 			close(sockfd);
 			return 1;
@@ -124,19 +125,19 @@ int recvFileList(int sfd, struct actionParameters *ap,
 	file.ip = ap->comip;
 	file.port = ap->comport;
 	struct array *fl2; 
-	while ( ( res = getTokenFromStream( conffd, &ap->combuf, &ap->comline, "\n", "\r\n",NULL ) ) ){
+	while ( ( res = getTokenFromStream( sfd, &ap->combuf, &ap->comline, "\n", "\r\n",NULL ) ) ){
 		if (res ==  -1) return -1;
-		strcpy(file.filename, &ap->comline.buf);
-		res = getTokenFromStream( conffd, &ap->combuf, &ap->comword, "\n", "\r\n",NULL );
+		strcpy(file.filename, (char *)&ap->comline.buf);
+		res = getTokenFromStream( sfd, &ap->combuf, &ap->comword, "\n", "\r\n",NULL );
 		if (res ==  -1) return -1;
 		errno =0;
-		if ( (file.size = strtol(ap->comword.buf, NULL, 10)) < 0 || errno)  return -1;
+		if ( (file.size = strtol((char *)ap->comword.buf, NULL, 10)) < 0 || errno)  return -1;
 
 		if (semWait(sap->shmid_filelist, SEM_FILELIST)) return -1;
-		fl2 = addArrayItem(sap->filelist, file);
+		fl2 = addArrayItem(sap->filelist, &file);
 		if (semSignal(sap->shmid_filelist, SEM_FILELIST)) return -1;
 
-		if (fl2) sap->filelist = fl2
+		if (fl2) sap->filelist = fl2;
 		else return -1;
 	}
 	return 1;
@@ -147,6 +148,7 @@ int filelistAction(struct actionParameters *ap,
 	uint16_t port = 0;
 	pid_t pid;
 	int sockfd = createPassiveSocket(&port); ;
+	socklen_t socklen;
 	struct sockaddr_in addr;
 	if (!sockfd) return -1;
 	switch( pid = fork()){
@@ -155,11 +157,12 @@ int filelistAction(struct actionParameters *ap,
 			perror("(filelistAction) Problem forking");
 			return -1;
 		case 0:
-			if (getpeername(sockfd, &addr, sizeof(struct sockaddr_in))) return -2;
+			socklen = sizeof(struct sockaddr_in);
+			if (getpeername(sockfd, (struct sockaddr *)&addr, &socklen)) return -2;
 			ap->comip = addr.sin_addr;
 			ap->comport = addr.sin_port;
 			if (writef(sockfd, "%d SENDLIST SOCKET %d", REP_COMMAND, port) < 0) return -2;
-			return  (recvFileList(sockfd, ap, aap) == 1) ? -2 : -3;
+			return  (recvFileList(sockfd, ap, aap->sap) == 1) ? -2 : -3;
 		default:
 			close(sockfd);
 			return 1;

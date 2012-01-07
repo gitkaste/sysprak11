@@ -25,4 +25,7 @@ int helpAction(struct actionParameters *ap,
 int filelistAction(struct actionParameters *ap,
 	union additionalActionParameters *aap);
 
+/* send the reply to a search query */
+int searchAction(struct actionParameters *ap,
+	union additionalActionParameters *aap);
 #endif

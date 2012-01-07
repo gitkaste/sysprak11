@@ -59,6 +59,11 @@ int remArrayItem(struct array *a, unsigned long num);
 void *getArrayItem(struct array *a, unsigned long num);
 void *iterateArray(struct array *a, unsigned long *i);
 
+/* functions for creating and deleting shared mem */
+int shmCreate(int id);
+int shmDelete(int size);
+#define IPC_KEY 39471
+
 /* struct flEntry
  * Represents a file in the network.
 */

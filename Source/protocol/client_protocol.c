@@ -55,10 +55,8 @@ int client_resultAction(struct actionParameters *ap,
 			if ( errno || port<0|| port>65536 ) _exit(EXIT_FAILURE);
 			int sockfd = connectSocket(&ap->comip, port);
 			if (sockfd == -1) _exit(EXIT_FAILURE);
-			int ret = recvResult(sockfd, ap->conf->share, "");
-			if (ret == 1){
-				// Bugbug here log to console!
-			}
+			/*BUGBUG shouldn't we clear the results array before getting new ones?*/	
+			int ret = recvResult(sockfd, ap,aap->cap->results);
 			return (ret == 1)? -2 : -3;
 		default:
 			return 1;
