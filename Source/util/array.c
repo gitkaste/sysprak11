@@ -36,7 +36,7 @@ void freeArray(struct array *a){
 
 struct array *addArrayItem (struct array *a, void *item){
 	fprintf(stderr, "Array pointer %p\n", (void *)a);
-	if (!(a->memsize >= a->itemsize * (a->itemcount + 1))){
+	if (a->memsize <= a->itemsize * (a->itemcount + 1)){
 		if (a->shmid == -1){
 			void *newmem = realloc(a->mem, sizeof(struct array)+ a->itemsize*(a->itemcount + 10));
 			/* the heaps too small - crap, nothing we can do */

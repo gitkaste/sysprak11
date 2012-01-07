@@ -108,8 +108,9 @@ action validateToken(struct buffer *token, struct protocol *prot) {
 
 /* This function needs to return gracefully! Either it succeeds completely
  * or rolls back any and every open ressource */
-int initap(struct actionParameters *ap, char error[256], int logfilefd, int semcount){
+int initap(struct actionParameters *ap, char error[256], struct config *conf, int semcount){
 	int logfds[2];
+	int logfilefd;
 	/***** Setup BUFFERS *****/
 	strncpy(error, "Couldn't create buffers, out of mem", 256);
 	if (createBuf(&(ap->combuf),4096) == -1 )
@@ -132,8 +133,16 @@ int initap(struct actionParameters *ap, char error[256], int logfilefd, int semc
 
 	ap->comfd = 0;
 	ap->sigfd = 0;
+	ap->conf = conf;
 
 	/***** Setup Logging  *****/
+	logfilefd = open ( conf->logfile, O_APPEND|O_CREAT|O_NONBLOCK,
+		 	S_IRUSR|S_IWUSR|S_IRGRP );
+	if ( logfilefd == -1 ) {
+		sperror("error opening log file, i won't create a path for you", error, 256);
+		goto error;
+	}
+
 	if (pipe2(logfds, O_NONBLOCK) == -1) {
 		sperror("Error creating pipe", error, 256);
 		goto error;
@@ -142,6 +151,7 @@ int initap(struct actionParameters *ap, char error[256], int logfilefd, int semc
 	switch(ap->logpid = fork()){
 	case -1: 
 		sperror("Error forking", error, 256);
+		close(logfilefd);
 		close(logfds[0]);
 		close(logfds[1]);
 		goto error;

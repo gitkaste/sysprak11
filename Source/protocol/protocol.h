@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "util.h"
+#include "config.h"
 #include "directoryParser.h"
 
 
@@ -59,6 +60,7 @@ struct actionParameters { /* elwms */
 	int logfd;
 	pid_t logpid;
 	int sigfd;
+	struct config *conf;
 	
 	struct buffer combuf;
 	struct buffer comline;
@@ -176,9 +178,11 @@ action validateToken(struct buffer *token, struct protocol *prot);
  * sends a reply to the client (including a numerical code)
 */
 int reply(int comfd, int logfd, int semid, int code, const char *msg);
-int initap(struct actionParameters *ap, char error[256], int logfilefd,
+int initap(struct actionParameters *ap, char error[256], struct config *conf,
 		int semcount);
 void freeap(struct actionParameters *ap);
+int recvFileList(int sfd, struct actionParameters *ap,
+		struct serverActionParameters *sap);
 
 /* *************************************************************************** *
  *                                                                             *

@@ -11,16 +11,16 @@ union semun {
 };
 
 int semCreate(int num){
-	int semid = semget(SHM_KEY,num,0);
+	int semid = semget(IPC_KEY,num,IPC_CREAT|0666);
 	if (semid == -1) {
 		//puts("Problem creating semph. group id");
 		return -1;
 	}
-	//union semun smun;
-	//smun.val=1;
+	union semun smun;
+	smun.val=1;
 	return semid;
-	//return (semctl(semid, 0, SETVAL, smun) == -1)? -1: semid;
-	//return (semctl(semid, 99, SETALL, smun) == -1)? -1: semid;
+	return (semctl(semid, 0, SETVAL, smun) == -1)? -1: semid;
+	return (semctl(semid, 99, SETALL, smun) == -1)? -1: semid;
 }
 
 int semWait(int semid, int semnum){

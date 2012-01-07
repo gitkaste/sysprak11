@@ -22,7 +22,7 @@
 
 int initsap (struct serverActionParameters *sap, char error[256], struct config * conf){
 	int size = conf->shm_size;
-	if ( (sap->shmid_filelist = shmget(SHM_KEY, size, IPC_CREAT|0660)) == -1)
+	if ( (sap->shmid_filelist = shmCreate(size)) == -1)
 			return -1;
 	fprintf(stderr, "shmid %d\n", sap->shmid_filelist);
 	sap->usedres = SAPRES_FILELISTSHMID;
@@ -50,10 +50,65 @@ void print_usage(char * prog){
 		prog);
 }
 
+/* function called when forking off after accepting */
+int comfork(struct actionParameters *ap, 
+		union additionalActionParameters *aap){
+
+	int pollret;
+	struct pollfd pollfds[2];
+  struct signalfd_siginfo fdsi;
+  ssize_t SRret;
+
+	if (ap.comfd == -1)
+		perror("Error accepting a connection");
+	else{
+		char buf[16];
+		fprintf(stderr, "Connection accepted from %s:%d\n",
+				inet_ntop(AF_INET, &ap.comip, buf, sizeof(buf)), 
+				ntohs(ap.comport));
+		/* BUGBUG: Hier muss gepolled werden. */
+
+		/* Setting up stuff for Polling */
+		pollfds[0].fd = ap.comfd;    /* data incoming from client */
+		pollfds[0].events = POLLIN;
+		pollfds[0].revents = 0;
+		pollfds[1].fd = ap.sigfd; /* communication with signalfd */
+		pollfds[1].events = POLLIN;
+		pollfds[1].revents = 0;
+
+		while (1){
+			pollret = poll(pollfds, 2, -1);
+
+			if (pollret < 0 || pollret == 0) {
+				if (errno == EINTR) continue; /* Signals */
+				fprintf(stderr, "POLLING Error.\n");
+				shellReturn = EXIT_FAILURE;
+				break;
+			}
+		if(pollfds[0].revents & POLLIN) {    /* incoming client */
+
+			return (processIncomingData(&ap, (union additionalActionParameters *)&sap ))
+		} else if(pollfds[1].revents & POLLIN) { /* incoming signal */
+			SRret = read(ap.sigfd, &fdsi, sizeof(struct signalfd_siginfo));
+			if (SRret != sizeof(struct signalfd_siginfo)){
+				fprintf(stderr, "signalfd returned something broken");
+				shellReturn = EXIT_FAILURE;
+			}
+			switch(fdsi.ssi_signo){
+				case SIGINT:
+				case SIGQUIT:
+					return 0; /*?*/
+		} else {
+			fprintf(stderr, "Dunno what to do with this poll");
+			return -1;
+		}
+	}
+}
+
+
 int main (int argc, char * argv[]){
 	char error[256];
 	/* in and out fds are seen as from the clients view point */
-	int logfilefd;
 	struct config conf;
 	char * conffilename = "server.conf";
 	struct actionParameters ap;
@@ -84,16 +139,7 @@ int main (int argc, char * argv[]){
 		exit(EXIT_FAILURE);
 	}
 
-	/***** Setup Logging  *****/
-	logfilefd = open ( conf.logfile, O_APPEND|O_CREAT|O_NONBLOCK,
-		 	S_IRUSR|S_IWUSR|S_IRGRP );
-
-	if ( logfilefd == -1 ) {
-		fputs("error opening log file, i won't create a path for you", stderr);
-		exit(EXIT_FAILURE);
-	}
-
-	if (initap(&ap, error, logfilefd, numsems) == -1) {
+	if (initap(&ap, error, &conf, numsems) == -1) {
 		close(logfilefd);
 		fputs(error,stderr);
 		exit(EXIT_FAILURE);
@@ -125,6 +171,8 @@ int main (int argc, char * argv[]){
 		freesap(&sap);
 		exit(EXIT_FAILURE);
 	}
+	/* delete this, it's not needed in the forked off child */
+	sigdelset(&mask, SIGCHLD);
 
 	struct pollfd pollfds[2];
 	/* Setting up stuff for Polling */
@@ -149,17 +197,23 @@ int main (int argc, char * argv[]){
 		if(pollfds[0].revents & POLLIN) {    /* incoming client */
 			ap.comport = sizeof(ap.comip);
 			ap.comfd = accept(sockfd, (struct sockaddr *) &(ap.comip), (socklen_t *)&(ap.comport));
-			if (ap.comfd == -1)
-				perror("Error accepting a connection");
-			else{
-				char buf[16];
-				fprintf(stderr, "Connection accepted from %s:%d\n",
-						inet_ntop(AF_INET, &ap.comip, buf, sizeof(buf)), 
-						ntohs(ap.comport));
-				if ( -1 == processIncomingData(&ap, (union additionalActionParameters *)&sap )){
+			switch ((forkret = fork())){
+				case -1:
 					close(ap.comfd);
-					break; 
-				}
+				case 0: /* I'm in the child */
+					close(sockfd);
+					close(ap.sigfd);
+					if ( (ap.sigfd = getSigfd(&mask)) >= 0 ){
+						fputs("error getting a signal fd", stderr);
+						_exit(EXIT_FAILURE);
+					} else {
+						comret = comfork(&ap, &sap);
+						/*BUGBUG*/
+						/* Do i need to do more */
+						_exit(comret);
+					}
+				default:
+					close(ap.comfd);
 			}
 		} else if(pollfds[1].revents & POLLIN) { /* incoming signal */
 			SRret = read(ap.sigfd, &fdsi, sizeof(struct signalfd_siginfo));

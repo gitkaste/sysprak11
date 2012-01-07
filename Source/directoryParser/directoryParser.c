@@ -61,7 +61,7 @@ int parseDirToFD(int fd, const char * basedir, const char * subdir){
 				free(entrypath);
 				return -1;
 			}
-			writef(fd, "%s\n%d\n", subfile, statentry.st_size);
+			if (-1 == writef(fd, "%s\n%d\n", subfile, statentry.st_size)) return -1;
 		}
 		/* Ignores other st_modes by default */
 	}

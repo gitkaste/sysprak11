@@ -35,7 +35,6 @@ ssize_t writeWrapper (int fd, const void *buf, size_t count);
 ssize_t readToBuf (int fd, struct buffer *buf);
 ssize_t writeBuf (int fd, struct buffer *buf);
 
-#define SHM_KEY 39471
 /* Unified structure for mem in shared mem segments as well as process local mem
  */
 struct array { 

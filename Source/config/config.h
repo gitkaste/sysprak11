@@ -1,7 +1,8 @@
 #include <inttypes.h> /* uintX_t */
 #include <stdio.h> /* FILENAME_MAX */
 #include <netinet/in.h> /* struct in_addr */
-
+#ifndef _CONFIG_H
+#define _CONFIG_H
 /* struct config
  * configuration structure for _both_, server and client (merged). */
 struct config {
@@ -18,3 +19,4 @@ void confDefaults(struct config *conf);
 int parseConfig (int conffd, struct config *conf);
 int writeConfig (int fd, struct config *conf);
 int initConf(char * conffilename, struct config *conf, char error[256]);
+#endif 

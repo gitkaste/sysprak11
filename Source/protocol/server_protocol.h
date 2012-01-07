@@ -20,4 +20,9 @@ int quitAction(struct actionParameters *ap,
 /* Print some help (available commands) */
 int helpAction(struct actionParameters *ap,
 	union additionalActionParameters *aap);
+
+/* receive File list action */
+int filelistAction(struct actionParameters *ap,
+	union additionalActionParameters *aap);
+
 #endif

@@ -25,14 +25,26 @@ void freecap(struct clientActionParameters* cap){
 		close(cap->outfd);
 		close(cap->infd);
 	}
-	if (cap->usedres & CAPRES_RESULTSSHMID);
+	if (cap->usedres & CAPRES_RESULTSSHMID) shmDelete(cap->shmid_results);
 	if (cap->usedres & CAPRES_RESULTS)      freeArray(cap->results);
 	if (cap->usedres & CAPRES_SERVERFD)     close (cap->serverfd);
 	if (cap->usedres & CAPRES_CPA)          freeArray(cap->cpa);
 }
 
-int initcap (struct clientActionParameters* cap, char error[256]){
+int initcap (struct clientActionParameters* cap, char error[256], struct config * conf){
 	int consoleinfd[2], consoleoutfd[2];
+	int size = conf->shm_size;
+	if ( (cap->shmid_results = shmCreate(size)) == -1)
+			return -1;
+	fprintf(stderr, "shmid %d\n", cap->shmid_results);
+	cap->usedres = CAPRES_RESULTSSHMID;
+
+	size -= sizeof(struct array);
+	if (!(cap->results = initArray(sizeof(struct flEntry), size, cap->shmid_results))){
+		shmDelete(cap->shmid_results);
+		return -1;	
+	}
+	cap->usedres |= CAPRES_RESULTS;
 
 	if (pipe2(consoleinfd, O_NONBLOCK) == -1 ||
 		 	pipe2(consoleoutfd, O_NONBLOCK) == -1) {
@@ -136,7 +148,7 @@ int processServerReply(struct actionParameters *ap,
 			errno=0;
 			/* Split into tokens */
 			int code = strtol( (char *) ap->comword.buf, NULL, 10);
-			if ( errno || code<REP_OK || code>REP_FATAL || code%100 ) return -1;
+			if ( errno || code<REP_OK || code>REP_FATAL || code % 100 ) return -1;
 			if ( (pcret = processCode(code, ap, aap)) <= 0 ) return pcret;
 		default:
 			logmsg( ap->semid, ap->logfd, LOGLEVEL_WARN,
@@ -152,7 +164,6 @@ int processServerReply(struct actionParameters *ap,
 }
 
 int main (int argc, char * argv[]){
-	int logfilefd;
 	struct config conf;
 	char * conffilename="client.conf";
   struct in_addr server_ip;
@@ -211,24 +222,13 @@ int main (int argc, char * argv[]){
 	if (server_ip.s_addr)
 		conf.ip.s_addr = server_ip.s_addr;
 
-	/***** Setup Logging *****/
-	logfilefd = open ( conf.logfile, O_APPEND|O_CREAT|O_NONBLOCK,
-		 	S_IRUSR|S_IWUSR|S_IRGRP );
-
-	if ( logfilefd == -1 ) {
-		fputs("error opening log file, i won't create a path for you", stderr);
-		exit(EXIT_FAILURE);
-	}
-
-	if (initap(&ap, error, logfilefd, numsems) == -1) {
-		close(logfilefd);
+	if (initap(&ap, error, &conf, numsems) == -1) {
 		fputs(error, stderr);
 		exit(EXIT_FAILURE);
 	}
-	close(logfilefd);
 	initializeClientProtocol(&ap);
 
-	if (initcap(&cap, error) == -1){
+	if (initcap(&cap, error, &conf) == -1){
 		freeap(&ap);
 		fputs(error, stderr);
 		exit(EXIT_FAILURE);

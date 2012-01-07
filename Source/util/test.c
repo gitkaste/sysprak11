@@ -96,7 +96,7 @@ int main(int argc, char * argv[]){
 	//test_buffers();
 	test_arrays(-1);
 	LOG("creating shared mem");
-	int shmid = shmget(SHM_KEY, 1024, IPC_CREAT|0666);
+	int shmid = shmget(IPC_KEY, 1024, IPC_CREAT|0666);
 	fprintf(stderr, "%d\n", shmid);
 	test_arrays(shmid);
 	//test_semaphores();

@@ -50,3 +50,60 @@ int connectSocket(struct in_addr *ip, uint16_t port){
 	}
 	return sockfd;
 }
+
+int sendResult(int fd, struct actionParameters *ap, 
+		struct serverActionParameters *sap){
+	unsigned long i = 0;
+	struct flEntry *fl;
+	/* blatt7 is wrong about the comword alreay containing the search token */
+	res = getTokenFromBuffer(ap->comline, ap->comword, "\n", "\r\n",NULL );
+	if (res == -1) return -3;
+
+	while (( fl = iterateArray(sap->filelist, &i))){
+		if (strcasecmp(ap->comword, fl->filename)) continue;
+		if (-1 == writef(fd, "%d\t%d\t%s\t%lu", fl->ip->s_addr, fl->port, 
+				fl->filename, fl->size))
+			return -3;
+
+	}
+	return -2;
+}
+
+int recvResult(int fd, struct actionParameters *ap,
+		struct serverActionParameters *sap){
+	int res;
+	struct flEntry file;
+	/* get a line */
+	while ( ( res = getTokenFromStream( conffd, &ap->combuf, &ap->comline, "\n", "\r\n",NULL ) ) ){
+		if (res ==  -1) return -3;
+		/* get first word -> ip */
+		res = getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL );
+		if (res ==  -1) return -3;;
+		errno =0;
+		if ( (file.ip.s_addr = strtol(ap->comword.buf, NULL, 10)) < 0 || errno)  return -3;
+		/* get second word -> port */
+		res = getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL );
+		if (res ==  -1) return -3;;
+		errno =0;
+		if ( (file.port = strtol(ap->comword.buf, NULL, 10)) < 0 || errno)  return -3;
+		/* get third word -> filename */
+		res = getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL );
+		if (res ==  -1) return -3;;
+		strcpy(file.filename, &ap->comline.buf);
+		/* get fourth word -> size */
+		res = getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL );
+		if (res ==  -1) return -3;;
+		errno =0;
+		if ( (file.size = strtol(ap->comword.buf, NULL, 10)) < 0 || errno)  return -3;
+
+		if (semWait(cap->results, SEM_FILELIST)) return -3;
+		fl2 = addArrayItem(cap->results, file);
+		if (semSignal(cap->results, SEM_FILELIST)) return -3;
+
+		if (fl2) cap->filelist = fl2
+		else return -3;
+	}
+	return 2;
+}
+
+cap->results 
