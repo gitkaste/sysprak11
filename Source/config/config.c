@@ -22,14 +22,25 @@
 
 /* supposed to init the defaults */
 void confDefaults(struct config *conf){
+
 	/* This shall not fail */
 	inet_pton(AF_INET, "0.0.0.0", (void *)&(conf->ip));
 	conf->port = 4444;
-	strcpy(conf->logfile, "tmp/sysprak");
+	strcpy(conf->logfile, "tmp/sysprak/server.log");
 	conf->loglevel = 1;
-	strcpy(conf->share, "share");
+	strcpy(conf->share, "tmp/sysprak/share");
 	/* read from /proc/sys/kernel/shmmax */
 	conf->shm_size = 33554432; 
+	conf->forceIpVersion = 0;
+	conf->logMask = 1;
+	strcpy(conf->workdir, "tmp/sysprak");
+	strcpy(conf->networkDumpLogFile, "tmp/sysprak/serverDump.log");
+	/* BUGBUG read from eth0 or something this is crap */
+	inet_pton(AF_INET, "127.0.0.1", (void *)&(conf->bc_ip));
+	conf->bc_port = 4445;
+	conf->scheduler = SCHEDULER_RR;
+	conf->bc_interval = 10;
+	conf->schedTimeSlice = 3;
 }
 
 /* fills the conf with the values from the conf file */
@@ -39,6 +50,7 @@ int parseConfig (int conffd, struct config *conf){
 	struct buffer line;
 	struct buffer buf_tmp;
 	char * commentstart;
+	int forceIpVersion;
 	createBuf(&line,1024);
 	createBuf(&buf_tmp,1024);
 	createBuf(&key,256);
@@ -60,24 +72,84 @@ int parseConfig (int conffd, struct config *conf){
 			/*** IP ***/
 			if (!strncmp((char *)key.buf, "ip", key.buflen)){
 				inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->ip));
+
 			/*** Port ***/
 			}else if (!strncmp((char *)key.buf, "port", key.buflen)){
 				conf->port = (uint16_t) strtol((char *)value.buf, NULL, 10);
+
 			/*** Loglevel ***/
 			}else if (!strncmp((char *)key.buf, "loglevel", key.buflen)){
 				conf->loglevel = (uint8_t) strtol((char *)value.buf, NULL, 10);
+
 			/*** shm_size ***/
 			}else if (!strncmp((char *)key.buf, "shm_size", key.buflen)){
 				conf->shm_size = (uint32_t) strtol((char *)value.buf, NULL, 10);
+
 			/*** logfile ***/
 			}else if (!strncmp((char *)key.buf, "logfile", key.buflen)){
 				strncpy(conf->logfile, (char *)value.buf, FILENAME_MAX);
+
+			/*** share ***/
 			}else if (!strncmp((char *)key.buf, "share", key.buflen)){
 				strncpy(conf->share, (char *)value.buf, FILENAME_MAX);
+
+			/*** logMask ***/
+			}else if (!strncmp((char *)key.buf, "logMask", key.buflen)){
+				conf->logMask = (uint16_t) strtol((char *)value.buf, NULL, 10);
+
+			/*** forceIpVersion ***/
+			}else if (!strncmp((char *)key.buf, "forceIpVersion", key.buflen)){
+				forceIpVersion = (uint8_t) strtol((char *)value.buf, NULL, 10);
+				switch(forceIpVersion){
+					case 0:
+					case 4:
+					case 6:
+						conf->forceIpVersion = forceIpVersion;
+						break;
+					default:
+						fprintf(stderr,"(config parser) forceIpVersion can only be 0,4 or 6\n");
+				}
+
+			/*** bcip ***/
+			}else if (!strncmp((char *)key.buf, "bc_ip", key.buflen)){
+				inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->bc_ip));
+
+			/*** bc_port ***/
+			}else if (!strncmp((char *)key.buf, "bc_port", key.buflen)){
+				conf->bc_port = (uint16_t) strtol((char *)value.buf, NULL, 10);
+
+			/*** bc_broadcast ***/
+			}else if (!strncmp((char *)key.buf, "bc_broadcast", key.buflen)){
+				conf->bc_broadcast = (uint16_t) strtol((char *)value.buf, NULL, 10);
+
+			/*** bc_interval ***/
+			}else if (!strncmp((char *)key.buf, "bc_interval", key.buflen)){
+				conf->bc_interval = (uint16_t) strtol((char *)value.buf, NULL, 10);
+
+			/*** workdir ***/
+			}else if (!strncmp((char *)key.buf, "workdir", key.buflen)){
+				strncpy(conf->workdir, (char *)value.buf, FILENAME_MAX);
+
+			/*** scheduler***/
+			}else if (!strncmp((char *)key.buf, "scheduler", key.buflen)){
+				if (strcasecmp((char *)value.buf, "rr"))
+					conf->scheduler = SCHEDULER_RR;
+				else if (strcasecmp((char *)value.buf, "pri"))
+					conf->scheduler =SCHEDULER_PRI;
+				else
+					fprintf(stderr,"(config parser) unknown scheduler: %s\n", value.buf);
+
+			/*** schedTimeSlice ***/
+			}else if (!strncmp((char *)key.buf, "schedTimeSlice", key.buflen)){
+				conf->schedTimeSlice = (uint16_t) strtol((char *)value.buf, NULL, 10);
+
+			/*** networkDumpLogFile ***/
+			}else if (!strncmp((char *)key.buf, "networkDumpLogFile", key.buflen)){
+				strncpy(conf->networkDumpLogFile, (char *)value.buf, FILENAME_MAX);
+
 			}else{
-				printf("crap unknown token: %s\n", key.buf);
+				fprintf(stderr,"(config parser) unknown token: %s\n", key.buf);
 			} 
-			/* ... */
 		}
 	}
 	freeBuf(&line);
@@ -105,11 +177,17 @@ int initConf(char * conffilename, struct config *conf, char error[256]){
 	return 1;
 }
 
-int writeConfig (int fd, struct config *conf){
+void writeConfig (int fd, struct config *conf){
 	char ip[127];
 	/* There is no way to enter a flawed ip in our system */
 	inet_ntop(AF_INET, &conf->ip, ip, 126);
-	if (writef(fd, "Using config:\n\tip:\t\t%s\n\tport:\t\t%d\n",ip, conf->port) == -1) return -1;
-	if (writef(fd, "\tlogfile:\t%s\n\tloglevel:\t%d\n", conf->logfile, conf->loglevel) == -1) return -1;
-	return writef(fd, "\tshare:\t\t%s\n\tshm_size:\t%d\n", conf->share, conf->shm_size);
+	writef(fd, "Using config:\n\tip:\t\t%s\n\tport:\t\t%d\n",ip, conf->port);
+	writef(fd, "\tlogfile:\t%s\n\tloglevel:\t%d\n", conf->logfile, conf->loglevel);
+	writef(fd, "\tlogMask:\t%d\n", conf->logMask); 
+	writef(fd, "\tnetworkDumpLogFile:%s\n", conf->networkDumpLogFile);
+	writef(fd, "\tshare:\t\t%s\n\tshm_size:\t%d\n", conf->share, conf->shm_size);
+	writef(fd, "\tworkdir:\t%s\n", conf->workdir);
+	writef(fd, "\tforceIpVersion:\t%d\n", conf->forceIpVersion);
+	inet_ntop(AF_INET, &conf->bc_ip, ip, 126);
+	writef(fd, "\tbc_ip:\t\t%s\n\tbc_port:\t%d\n", ip, conf->bc_port);
 }

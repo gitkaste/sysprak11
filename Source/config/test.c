@@ -16,6 +16,7 @@ int main(int argc, char * argv[]){
 	struct config conf;
 	confDefaults(&conf);
 	LOG("done with defaulting");
+	writeConfig(1, &conf);
 	int fd = open (argv[1],O_RDONLY);
 	parseConfig(fd, &conf);
 	fflush(stdout);
