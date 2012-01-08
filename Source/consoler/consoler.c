@@ -27,17 +27,17 @@ int getchar_wrapper(struct buffer *stdinbuf, int semid);
 
 /* Idea from http://www.pronix.de */
 int raw (int fd, struct termios *new_io, struct termios *old_io) {
+
 	/*Sichern unseres Terminals*/
 	if ((tcgetattr (fd, old_io)) == -1)
 		return -1;
 	memcpy(new_io, old_io, sizeof(struct termios));
 
 	/*Wir verändern jetzt die Flags für den raw-Modus*/
-	new_io->c_iflag =
-	new_io->c_iflag & ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-	new_io->c_oflag = new_io->c_iflag & ~(OPOST);
-	new_io->c_cflag = new_io->c_cflag & ~(CSIZE | PARENB);
-	new_io->c_lflag = new_io->c_lflag & ~(ECHO|ICANON|IEXTEN|ISIG);
+	new_io->c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+	new_io->c_oflag &= ~(OPOST);
+	new_io->c_cflag &= ~(CSIZE | PARENB);
+	new_io->c_lflag &= ~(ECHO|ICANON|IEXTEN|ISIG);
 	new_io->c_cflag = new_io->c_cflag | CS8;
 	new_io->c_cc[VMIN]  = 1;
 	new_io->c_cc[VTIME] = 0;
@@ -47,6 +47,7 @@ int raw (int fd, struct termios *new_io, struct termios *old_io) {
 	if ((tcsetattr (fd, TCSAFLUSH, new_io)) == -1)
 		return -1;
 	return 0;
+
 }
 
 int getcharWrapper(struct buffer *stdinbuf) {
