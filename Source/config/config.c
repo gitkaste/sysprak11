@@ -101,7 +101,7 @@ int initConf(char * conffilename, struct config *conf, char error[256]){
 		return -1;
 	}
 	close(conffd);
-	writeConfig (STDOUT_FILENO, conf);
+//	writeConfig (STDOUT_FILENO, conf);
 	return 1;
 }
 

@@ -14,10 +14,10 @@ struct array *initArray(size_t itemsize, size_t initial_size, int shmid){
 		arr = shmat(shmid, NULL, 0);
 		if (arr == (void *) -1) return NULL;
 	}
-	fprintf(stderr, "arr: %p itemsize %d size %d shmid %d\n", (void *)arr, itemsize, initial_size, shmid);
+//	fprintf(stderr, "arr: %p itemsize %d size %d shmid %d\n", (void *)arr, (int)itemsize, (int) initial_size, shmid);
 	arr->mem = arr + sizeof(struct array);
-	fprintf(stderr, "arr: %p itemsize %d size %d shmid %d\n", (void *)arr, itemsize, initial_size, shmid);
-fflush(stderr);
+//	fprintf(stderr, "arr: %p itemsize %d size %d shmid %d\n", (void *)arr, (int)itemsize, (int) initial_size, shmid);
+//fflush(stderr);
 	arr->memsize = initial_size;
 	arr->itemsize = itemsize;
 	arr->itemcount = 0;
