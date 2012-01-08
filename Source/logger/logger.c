@@ -11,22 +11,26 @@ int logger(int pipefd, int filefd){
 	struct buffer buf;
 	if ( createBuf(&buf,4096) == -1) return -1;
 	while (1) { 
-		s = readToBuf(pipefd, &buf);
-	 	if (s  == -2 ) continue;
-		if (s == -1 ){
-			puts("arg");
+		switch( (s = readToBuf(pipefd, &buf)) ){
+		case -2 :
+			continue;
+		case -1 :
+			perror("logger had trouble reading from fd");
 			freeBuf(&buf);
 			return -1;
-		}
-		if (s != ( t = writeBuf(filefd, &buf))) {
-			printf("%d - t %d",(int) s, (int) t);
-			if (t ==-1) perror("logger:");
+		case 0:
 			freeBuf(&buf);
-			return -1;
+			return 1;
+		default: // Means we got something decent - do nothing
+			if (s != ( t = writeBuf(filefd, &buf))) {
+				printf("%d - t %d",(int) s, (int) t);
+				if (t ==-1) perror("logger had trouble writing");
+				freeBuf(&buf);
+				return -1;
+			}
+			fsync(filefd);
 		}
 	}
-	freeBuf(&buf);
-	return 1;
 }
 
 int logmsg(int semid, int pipefd, int loglevel, const char *fmt, ...){
@@ -54,6 +58,7 @@ int logmsg(int semid, int pipefd, int loglevel, const char *fmt, ...){
 	buf.bufmax = strlen(ret) +1;
 	buf.buflen = strlen(ret);
 
+	fputs("entering logmsg", stderr);
 	if (semWait(semid, SEM_LOGGER) ==-1) {
 		freeBuf(&buf);
 		return -1;

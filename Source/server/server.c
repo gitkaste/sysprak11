@@ -24,7 +24,7 @@ int initsap (struct serverActionParameters *sap, char error[256], struct config 
 	int size = conf->shm_size;
 	if ( (sap->shmid_filelist = shmCreate(size)) == -1)
 			return -1;
-	fprintf(stderr, "shmid %d\n", sap->shmid_filelist);
+	//fprintf(stderr, "shmid %d\n", sap->shmid_filelist);
 	sap->usedres = SAPRES_FILELISTSHMID;
 
 	size -= sizeof(struct array);
@@ -197,26 +197,28 @@ int main (int argc, char * argv[]){
 			break;
 		}
 
+		fputs("another poll round\n", stderr);
 		if(pollfds[0].revents & POLLIN) {    /* incoming client */
 			ap.comport = sizeof(ap.comip);
 			ap.comfd = accept(sockfd, (struct sockaddr *) &(ap.comip), (socklen_t *)&(ap.comport));
 			switch ((forkret = fork())){
 				case -1:
 					close(ap.comfd);
+					fputs("error forking off a new client connection", stderr);
+					break;
 				case 0: /* I'm in the child */
 					close(sockfd);
-					close(ap.sigfd);
-					if ( (ap.sigfd = getSigfd(&mask)) >= 0 ){
-						fputs("error getting a signal fd", stderr);
+					if ( (ap.sigfd = getSigfd(&mask)) <= 0 ){
+						fputs("error getting a new signal fd for the fork\n", stderr);
 						_exit(EXIT_FAILURE);
 					} else {
+						close(ap.sigfd);
 						aap.sap = &sap;
 						comret = comfork(&ap, &aap);
-						/*BUGBUG*/
 						/* Do i need to do more */
 						_exit(comret);
 					}
-				default:
+				default: /* Parent branch */
 					close(ap.comfd);
 			}
 		} else if(pollfds[1].revents & POLLIN) { /* incoming signal */
@@ -228,10 +230,13 @@ int main (int argc, char * argv[]){
 			switch(fdsi.ssi_signo){
 				case SIGINT:
 				case SIGQUIT:
+					fprintf(stderr,"Yeah i found %s",(fdsi.ssi_signo==SIGINT) ?"SIGINT": "SIGQUIT");
 					shellReturn = EXIT_SUCCESS;
+					break;
 				case SIGCHLD:
 					logmsg(ap.semid, ap.logfd, LOGLEVEL_VERBOSE, 
 							"Child %d quit with status %d", fdsi.ssi_pid, fdsi.ssi_status);
+					break;
 				default:
 					logmsg(ap.semid, ap.logfd, LOGLEVEL_WARN,
 							"Encountered unknown signal on sigfd %d", fdsi.ssi_signo);
@@ -244,6 +249,7 @@ int main (int argc, char * argv[]){
 		if (shellReturn !=EXIT_NO) break;
 	}
 
+	fputs("Closing down",stderr);
 	close(sockfd);
 	freeap(&ap);
 	freesap(&sap);

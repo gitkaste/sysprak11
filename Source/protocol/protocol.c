@@ -165,7 +165,7 @@ int initap(struct actionParameters *ap, char error[256], struct config *conf, in
 		close(logfilefd);
 		/* Quitting */
 		freeap(ap);
-		fputs("child shutting down",stderr);
+		fputs("logger shutting down\n",stderr);
 		_exit(EXIT_SUCCESS);
 	default: /* we are in the parent */
 		close(logfilefd);

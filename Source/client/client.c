@@ -36,7 +36,7 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 	int size = conf->shm_size;
 	if ( (cap->shmid_results = shmCreate(size)) == -1)
 			return -1;
-	fprintf(stderr, "shmid %d\n", cap->shmid_results);
+	//fprintf(stderr, "shmid %d\n", cap->shmid_results);
 	cap->usedres = CAPRES_RESULTSSHMID;
 
 	size -= sizeof(struct array);
@@ -71,6 +71,7 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		/* outfd: Prog->Consoler->STDOUT*/
 		/* infd: STDIN->Consoler->Prog*/
 		consoler(cap->outfd, cap->infd);
+		fprintf(stderr,"consoler shutting down\n");
 		freecap(cap);
 		exit(EXIT_SUCCESS);
 	default: /* we are in the parent - Hope for Total she is female :P */

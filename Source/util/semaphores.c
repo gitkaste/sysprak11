@@ -11,16 +11,27 @@ union semun {
 };
 
 int semCreate(int num){
-	int semid = semget(IPC_KEY,num,IPC_CREAT|0666);
+	//int semid = semget(IPC_PRIVATE,num, IPC_CREAT|0666);
+	int semid = semget(IPC_PRIVATE, num, 0666);
 	if (semid == -1) {
-		//puts("Problem creating semph. group id");
+		perror("Creating semaphors");
 		return -1;
 	}
-	union semun smun;
-	smun.val=1;
-	return semid;
-	return (semctl(semid, 0, SETVAL, smun) == -1)? -1: semid;
-	return (semctl(semid, 99, SETALL, smun) == -1)? -1: semid;
+	union semun semopts;
+/*	struct semid_ds mysemds;
+	semopts.buf = &mysemds;
+	if(semctl(semid, 0, IPC_STAT, semopts) == -1) {
+          perror("semctl");
+					return -1;
+  }
+	printf("Old permissions were %o\n", semopts.buf->sem_perm.mode);
+	semopts.buf->sem_perm.mode = 0666;
+	if(semctl(semid, 0, IPC_SET, semopts) == -1) {
+          perror("semctl");
+					return -1;
+	}*/
+	semopts.val=1;
+	return (semctl(semid, 0, SETVAL, semopts) == -1)? (perror("Creating semaphors"),-1): semid;
 }
 
 int semWait(int semid, int semnum){
