@@ -3,6 +3,7 @@
 *.swp
 *valgrindlog
 Source/client/client.log
+Source/client/client.err
 Source/server/server.log
 Source/server/server
 Source/client/client
