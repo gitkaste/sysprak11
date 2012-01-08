@@ -63,6 +63,7 @@ int logmsg(int semid, int pipefd, int loglevel, const char *fmt, ...){
 		freeBuf(&buf);
 		return -1;
 	}
+	fputs("done waiting\n", stderr);
 	ssize_t written = writeBuf(pipefd, &buf);
 	freeBuf(&buf);
 	if (semSignal(semid, SEM_LOGGER) ==-1) return -1;

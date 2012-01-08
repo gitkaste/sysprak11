@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <errno.h>
+#include <time.h>
 #include "protocol.h"
 #include "util.h"
 #include "config.h"
@@ -136,10 +137,23 @@ int initap(struct actionParameters *ap, char error[256], struct config *conf, in
 	ap->conf = conf;
 
 	/***** Setup Logging  *****/
-	logfilefd = open ( conf->logfile, O_APPEND|O_CREAT|O_NONBLOCK,
+	logfilefd = open ( conf->logfile, O_APPEND|O_CREAT|O_RDWR|O_NONBLOCK,
 		 	S_IRUSR|S_IWUSR|S_IRGRP );
+
 	if ( logfilefd == -1 ) {
 		sperror("error opening log file, i won't create a path for you", error, 256);
+		goto error;
+	}
+
+	struct tm *t;
+	char s[256];
+	time_t u = time(NULL);
+
+	if ( (t = localtime(&u)) == 0 ) return -1;
+	if ( !(strftime(s, 255, "====Starting up client on %c====\n", t)) ) return -1;
+
+	if ( -1 == writeWrapper(logfilefd, s, strlen(s))){
+		sperror("error writing to log file", error, 256);
 		goto error;
 	}
 

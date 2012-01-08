@@ -74,6 +74,7 @@ struct flEntry {
 	unsigned long size;
 };
 
+int setFdNonblock(int fd);
 
 /* Own def */
 int sperror(char * pref, char * buf, int buflen);

@@ -42,19 +42,28 @@ int createPassiveSocket(uint16_t *port){
 
 int connectSocket(struct in_addr *ip, uint16_t port){
 	int sockfd;
-	if ( (sockfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0)) < -1 ){
+
+	if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < -1 ){
 		perror("couldn't attach to socket, damn");
 		return -1;
 	}
+
 	struct sockaddr_in peeraddr;
 	peeraddr.sin_addr.s_addr = ip->s_addr;
 	peeraddr.sin_port = htons(port);
 	peeraddr.sin_family = AF_INET;
+
 	if ( connect(sockfd, (struct sockaddr *) &peeraddr, sizeof(peeraddr)) == -1){
+		fprintf(stderr, "errno: %d", errno);
 		perror("Failure to connect to peer");
 		return -1;
 	}
-	return sockfd;
+
+	if (setFdNonblock(sockfd) == 1)
+		return sockfd;
+	else
+		perror("(connectSocket) Couldn't set sockfd to nonBlocking");
+		return -1;
 }
 
 int sendResult(int fd, struct actionParameters *ap, 

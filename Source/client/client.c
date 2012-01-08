@@ -180,7 +180,6 @@ int main (int argc, char * argv[]){
 #define EXIT_NO (EXIT_FAILURE * 2+3)
 	int pSRret, shellReturn=EXIT_NO;
 
-
 	server_ip.s_addr = 0;
 
 	/*  Option Processing */
@@ -281,7 +280,7 @@ int main (int argc, char * argv[]){
 					break;
 				default: 
 					if (pSRret ==0) continue;
-					fprintf(stderr, "WTF did processServerReply just return: %d?",pSRret);
+					fprintf(stderr, "WTF did processServerReply just return: %d?\n",pSRret);
 					shellReturn = EXIT_FAILURE;
 			}
 		} else if(pollfds[1].revents & POLLIN) { /* User commands us */
@@ -298,7 +297,7 @@ int main (int argc, char * argv[]){
 			/*  user closed connection - how? */
 			shellReturn = EXIT_SUCCESS;
 		} else {
-			fprintf(stderr, "Dunno what to do with this poll");
+			fprintf(stderr, "Dunno what to do with this poll\n");
 			shellReturn = EXIT_FAILURE;
 		}
 		if (shellReturn != EXIT_NO) break;
@@ -310,7 +309,7 @@ int main (int argc, char * argv[]){
 	freeap(&ap);
 	freecap(&cap);
 	if ( waitpid(cap.conpid, NULL, 0) < 0){
-		puts("Did Burpy: Unclean Shutdown - Sorry");
+		puts("Did Burpy: Unclean Shutdown - Sorry\n");
 		exit(shellReturn);
 	}
 
