@@ -279,7 +279,7 @@ int main (int argc, char * argv[]){
 					shellReturn = EXIT_SUCCESS;
 					break;
 				default: 
-					if (pSRret ==0) continue;
+					if (pSRret ==1) continue;
 					fprintf(stderr, "WTF did processServerReply just return: %d?\n",pSRret);
 					shellReturn = EXIT_FAILURE;
 			}
