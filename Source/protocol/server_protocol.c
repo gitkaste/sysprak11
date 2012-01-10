@@ -41,7 +41,7 @@
 
 struct protocol server_protocol = {
 	&unknownCommandAction,
-	3,
+	4,
 	{
 		{"STATUS", "STATUS returns Server-Status.\n", &statusAction},
 		{"QUIT", "QUIT closes the connection cleanly (probably).\n", &quitAction},
@@ -78,10 +78,8 @@ int statusAction(struct actionParameters *ap,
 int quitAction(struct actionParameters *ap,
 		union additionalActionParameters *aap) {
 	reply(ap->comfd, ap->logfd, ap->semid, REP_TEXT,
-		"Closing connection. Have a nice day ;)\n");
-	
-	/* Returning 0: main-loop shall break and shouldn't accept any
-	 * further commands */
+		"Closing connection. Have a nice day ;)\n"); 
+	/* Returning 0: main-loop shall break and shouldn't accept any further commands */
 	return 0;
 }
 
@@ -109,10 +107,10 @@ int searchAction(struct actionParameters *ap,
 int helpAction(struct actionParameters *ap,
 		union additionalActionParameters *aap) {
 	char * msg;
-	struct protocol * p = ap->prot;;
+	struct protocol * p = ap->prot;
 	for (int i =0; i < p->actionCount; i++){
 		msg = stringBuilder("%s: %s\n", p->actions[i].actionName, p->actions[i].description);
-		reply(ap->comfd, ap->logfd, ap->semid, REP_TEXT,msg); 	
+		reply(ap->comfd, ap->logfd, ap->semid, REP_TEXT,msg);
 		free(msg);
 	}
 	return 1;

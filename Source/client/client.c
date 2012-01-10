@@ -284,10 +284,18 @@ int main (int argc, char * argv[]){
 					shellReturn = EXIT_FAILURE;
 			}
 		} else if(pollfds[1].revents & POLLIN) { /* User commands us */
-			s = readToBuf(cap.infd, &msg);
-			if (s  == -2) continue;
-			if (s == -1){
-				puts("arg, shouldn't happen");
+			switch(readToBuf(cap.infd, &msg)){
+			case -2: /* EINTR */
+				continue;
+			case -1:
+				fputs("Error reading from user", stderr);
+				shellReturn = EXIT_FAILURE;
+				break;
+			case 0: /* end of file */
+					shellReturn = EXIT_SUCCESS;
+				break;
+			default:
+					shellReturn = EXIT_FAILURE;
 				break;
 			}
 		} else if (pollfds[0].revents & POLLHUP) {
@@ -307,7 +315,7 @@ int main (int argc, char * argv[]){
 
 	freeBuf(&msg);
 	freeap(&ap);
-	freecap(&cap);
+	freecap(&cap); /* closes all open file handles with the consoler */
 	if ( waitpid(cap.conpid, NULL, 0) < 0){
 		puts("Did Burpy: Unclean Shutdown - Sorry\n");
 		exit(shellReturn);

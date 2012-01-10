@@ -69,38 +69,6 @@ ssize_t readToBuf (int fd, struct buffer *buf){
 	}
 	/* see how many are left */
 	buf->buflen = count;
-	buf->buf[count] = '\0';
+	if (buf->bufmax > count) buf->buf[count] = '\0';
 	return count;
-}
-
-ssize_t readToBuf_complicated (int fd, struct buffer *buf){
-	ssize_t count = buf->bufmax-1;
-	ssize_t countwritten = 0;
-
- for(;;){ 
-	 errno=0;
-	 /* try to read count many bytes */
-	 count = read (fd, buf->buf, count);
-	 if (count == 0) {
-		 buf->buflen = countwritten +1;
-		 buf->buf[buf->buflen] = '\0';
-		 return countwritten;
-	 }
-	 if (count ==-1) {
-		 if (errno == EINTR || errno == EAGAIN) {
-			 return -2;
-			/* shouldn't this be continue instead? */
-		 } else {perror("Read error in ReadToBuf");return -1;}
-	 }
-	 /* see how many are left */
-	 countwritten += count;
-	 if (countwritten >= buf->bufmax -1){
-		 buf->buflen = countwritten +1;
-		 buf->buf[buf->buflen] = '\0';
-		 return countwritten;
-	 } else {
-		 /* reinitialize it so you don't overflow the buffer */
-		 count = buf->bufmax - countwritten;
-		}
-	}
 }
