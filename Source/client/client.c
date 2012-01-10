@@ -176,7 +176,7 @@ int main (int argc, char * argv[]){
 	aap.cap = &cap;
 	struct buffer msg;
 	char error[256];
-	int opt;
+	int opt, passport;
 #define EXIT_NO (EXIT_FAILURE * 2+3)
 	int pSRret, shellReturn=EXIT_NO;
 
@@ -224,26 +224,33 @@ int main (int argc, char * argv[]){
 
 	if (initap(&ap, error, &conf, numsems) == -1) {
 		fputs(error, stderr);
-		exit(EXIT_FAILURE);
+		shellReturn = EXIT_FAILURE;
+		goto error;
 	}
 	initializeClientProtocol(&ap);
 
 	if (initcap(&cap, error, &conf) == -1){
-		freeap(&ap);
 		fputs(error, stderr);
-		exit(EXIT_FAILURE);
+		shellReturn = EXIT_FAILURE;
+		goto error;
 	}
 
 	ap.comip = conf.ip;
 	ap.comport = conf.port;
 	if ( (ap.comfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
-		freeap(&ap);
-		freecap(&cap);
-		fputs("error setting up network connection", stderr);
-		exit(EXIT_FAILURE);
+		fputs("Error setting up network connection\n", stderr);
+		shellReturn = EXIT_FAILURE;
+		goto error;
 	}
 	ap.usedres |= APRES_COMFD;
 
+	/* create a passive port to accecpt client connections. */
+	if ( (passport = createPassiveSocket(0)) == -1){
+		fputs("Error setting up network connection\n", stderr);
+		shellReturn = EXIT_FAILURE;
+		goto error;
+	}
+	
 		/* Main Client Loop */
 	createBuf(&msg,4096);
 
@@ -256,7 +263,6 @@ int main (int argc, char * argv[]){
 	pollfds[1].events = POLLIN;
 	pollfds[1].revents = 0;
 		
-	ssize_t s;
 	while (1){ 
 		/* should i poll infinitely or a discrete time? */
 		int pollret = poll(pollfds, 2, -1);
@@ -268,6 +274,8 @@ int main (int argc, char * argv[]){
 			break;
 		}
 
+		//ap.comport = sizeof(ap.comip);
+		//passport = accept(sockfd, (struct sockaddr *) &(ap.comip), (socklen_t *)&(ap.comport));
 		if(pollfds[0].revents & POLLIN) {    /* Server greets us */
 		 	switch (pSRret = processServerReply(&ap,&aap)){
 				case -3:
@@ -308,12 +316,14 @@ int main (int argc, char * argv[]){
 			fprintf(stderr, "Dunno what to do with this poll\n");
 			shellReturn = EXIT_FAILURE;
 		}
+		/* logmsg(0, ap.logfd, LOGLEVEL_VERBOSE, "%s", msg); */
 		if (shellReturn != EXIT_NO) break;
-		/*logmsg(0, ap.logfd, LOGLEVEL_VERBOSE, "%s", msg);*/
 	}
 	puts("end of loop");
 
+error:
 	freeBuf(&msg);
+	close(passport);
 	freeap(&ap);
 	freecap(&cap); /* closes all open file handles with the consoler */
 	if ( waitpid(cap.conpid, NULL, 0) < 0){

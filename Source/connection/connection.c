@@ -54,7 +54,7 @@ int connectSocket(struct in_addr *ip, uint16_t port){
 	peeraddr.sin_family = AF_INET;
 
 	if ( connect(sockfd, (struct sockaddr *) &peeraddr, sizeof(peeraddr)) == -1){
-		fprintf(stderr, "errno: %d", errno);
+		fprintf(stderr, "(connectSocket) errno: %d\n", errno);
 		perror("Failure to connect to peer");
 		return -1;
 	}

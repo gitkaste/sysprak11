@@ -16,6 +16,13 @@
 #include "logger.h"
 #include "tokenizer.h"
 
+/* reply is only used for the server to reply to the client not the other 
+ * way round! */
+int reply(int comfd, int logfd, int semid, int code, const char *msg) {
+	logmsg(semid, logfd, LOGLEVEL_DEBUG, "SEND: %3d %s", code, msg);
+	return writef(comfd, "%3d %s", code, msg);
+}
+
 /* processIncomingData shall be called when there is Data on an fd which is
  * processed by a protocol.
  * It does read from the fd, tries to get (all) tokens (that means lines here)
@@ -93,11 +100,6 @@ int processCommand(struct actionParameters *ap,
 	return (*validateToken(&ap->comword, ap->prot)) (ap, aap);
 }
 
-int reply(int comfd, int logfd, int semid, int code, const char *msg) {
-	logmsg(semid, logfd, LOGLEVEL_DEBUG, "SEND: %3d %s", code, msg);
-	return writef(comfd, "%3d %s", code, msg);
-}
-
 action validateToken(struct buffer *token, struct protocol *prot) {
 	int i;
 	for(i = 0; i < prot->actionCount; i++) {
@@ -117,6 +119,7 @@ int initap(struct actionParameters *ap, char error[256], struct config *conf, in
 	if (createBuf(&(ap->combuf),4096) == -1 )
 		return -1;
 	else ap->usedres = APRES_COMBUF;
+
 	if ( createBuf(&(ap->comline),4096) == -1 )
 		goto error;
 	else ap->usedres |= APRES_COMLINE;

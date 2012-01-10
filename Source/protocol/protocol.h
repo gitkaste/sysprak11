@@ -8,9 +8,7 @@
 #include "config.h"
 #include "directoryParser.h"
 
-
 /* Defines for used resources */
-
 /* ap */
 #define APRES_SIGFD 1             /* Bit  0 */
 #define APRES_LOGFD 2             /* Bit  1 */
@@ -21,11 +19,9 @@
 #define APRES_COMLINE 64          /* Bit  6 */
 #define APRES_COMWORD 128         /* Bit  7 */
 
-
 /* sap */
 #define SAPRES_FILELIST 1         /* Bit  0 */
 #define SAPRES_FILELISTSHMID 2    /* Bit  1 */
-
 
 /* cap */
 #define CAPRES_OUTFD 1             /* Bit 0 */
@@ -34,15 +30,12 @@
 #define CAPRES_SERVERFD 8          /* Bit 3 */
 #define CAPRES_CPA 16              /* Bit 4 */
 
-
 /* define return codes for protocol */
 #define REP_OK 100 /* This was intended to be sent without any text */
 #define REP_TEXT 200
 #define REP_COMMAND 300
 #define REP_WARN 400
 #define REP_FATAL 500
-
-
 
 /* struct actionParameters
  * This is the structure holding the mainly used resources used in actions. 
@@ -201,6 +194,3 @@ int recvFileList(int sfd, struct actionParameters *ap,
 */
 
 #endif
-
-
-

@@ -28,4 +28,8 @@ int filelistAction(struct actionParameters *ap,
 /* send the reply to a search query */
 int searchAction(struct actionParameters *ap,
 	union additionalActionParameters *aap);
+
+/* ? */
+int portAction(struct actionParameters *ap, 
+		union additionalActionParameters *aap);
 #endif

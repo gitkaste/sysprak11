@@ -77,7 +77,9 @@ struct flEntry {
 int setFdNonblock(int fd);
 
 /* Own def */
+#define ETRAILING 177
 int sperror(char * pref, char * buf, int buflen);
+int mystrtol(char * buf);
 
 /* Semaphore defines */
 /* General */

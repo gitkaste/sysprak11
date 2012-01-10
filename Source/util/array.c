@@ -38,7 +38,7 @@ struct array *addArrayItem (struct array *a, void *item){
 	fprintf(stderr, "Array pointer %p\n", (void *)a);
 	if (a->memsize <= a->itemsize * (a->itemcount + 1)){
 		if (a->shmid == -1){
-			void *newmem = realloc(a->mem, sizeof(struct array)+ a->itemsize*(a->itemcount + 10));
+			void *newmem=realloc(a->mem, sizeof(struct array)+a->itemsize*(a->itemcount + 10));
 			/* the heaps too small - crap, nothing we can do */
 			if (!newmem){
 				return NULL;
@@ -67,12 +67,12 @@ int remArrayItem (struct array *a, unsigned long num){
 	return 1;
 }
 
-void *getArrayItem(struct array *a, unsigned long num){
+void *getArrayItem(struct array *a, unsigned long num) {
 	if (num > a->itemcount-1) return NULL;
 	return (char *)a->mem+ num * a->itemsize;
 }
 
-void *iterateArray(struct array *a, unsigned long *i){
-	/* if it's the last item then it doens't matter if we inc i */
+void *iterateArray(struct array *a, unsigned long *i) {
+	/* if it's the last item then it doesn't matter if we inc i */
 	return getArrayItem(a, (*i)++);
 }

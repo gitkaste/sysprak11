@@ -166,3 +166,9 @@ int filelistAction(struct actionParameters *ap,
 			return 1;
 	}
 }
+
+int portAction(struct actionParameters *ap, 
+		union additionalActionParameters *aap){
+	ap->comport = mystrtol( (char *) ap->comline.buf);
+	return (errno) ? -1 : 1;
+}
