@@ -36,14 +36,13 @@ int raw (int fd, struct termios *new_io, struct termios *old_io) {
 	/*Wir verändern jetzt die Flags für den raw-Modus*/
 	new_io->c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
 	new_io->c_oflag &= ~(OPOST);
-	new_io->c_cflag &= ~(CSIZE | PARENB);
 	new_io->c_lflag &= ~(ECHO|ICANON|IEXTEN|ISIG);
-	new_io->c_cflag = new_io->c_cflag | CS8;
+	new_io->c_cflag &= ~(CSIZE | PARENB);
+	new_io->c_cflag |= CS8;
 	new_io->c_cc[VMIN]  = 1;
 	new_io->c_cc[VTIME] = 0;
-  
 
-	/*Jetzt setzten wir den raw-Modus*/
+	/*Jetzt setzen wir den raw-Modus*/
 	if ((tcsetattr (fd, TCSAFLUSH, new_io)) == -1)
 		return -1;
 	return 0;
@@ -145,7 +144,6 @@ int consoler(int infd, int outfd) {
 	writef(STDOUT_FILENO, "\r>> ");
 	
 	while(1) {
-
 		pollret = poll(pollfds, 2, -1);
 		
 		if(pollret < 0 || pollret == 0) {
@@ -188,7 +186,6 @@ int consoler(int infd, int outfd) {
 		}
 		else if(pollfds[1].revents & POLLIN) {
 			/* Stuff from STDIN wants to go to outfd */
-			
 			gwret = getcharWrapper(&stdinbuf);
 			if (gwret == 1) { /* New Line ! */
 				writef(STDOUT_FILENO, "\r>> ");
