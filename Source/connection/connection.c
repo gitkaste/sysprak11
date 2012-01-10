@@ -1,4 +1,5 @@
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <inttypes.h> /* uintX_t */
@@ -7,6 +8,8 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "connection.h"
 #include "tokenizer.h"
 #include "logger.h"
@@ -118,4 +121,61 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "%d)\t%s\t(%d)", counter++, file.filename, file.size);
 	}
 	return 2;
+}
+
+int recvFileList(int sfd, struct actionParameters *ap,
+		struct serverActionParameters *sap){
+	int res;
+	struct flEntry file;
+	file.ip = ap->comip;
+	file.port = ap->comport;
+	struct array *fl2; 
+	while ( ( res = getTokenFromStream( sfd, &ap->combuf, &ap->comline, "\n", "\r\n",NULL ) ) ){
+		if (res ==  -1) return -1;
+		strcpy(file.filename, (char *)&ap->comline.buf);
+		res = getTokenFromStream( sfd, &ap->combuf, &ap->comword, "\n", "\r\n",NULL );
+		if (res ==  -1) return -1;
+		errno =0;
+		if ( (file.size = strtol((char *)ap->comword.buf, NULL, 10)) < 0 || errno)  return -1;
+
+		if (semWait(sap->shmid_filelist, SEM_FILELIST)) return -1;
+		fl2 = addArrayItem(sap->filelist, &file);
+		if (semSignal(sap->shmid_filelist, SEM_FILELIST)) return -1;
+
+		if (fl2) sap->filelist = fl2;
+		else return -1;
+	}
+	return 1;
+}
+
+int handleUpload(int upfd, int confd, struct actionParameters *ap){
+	int res = getTokenFromStream( upfd, &ap->combuf, &ap->comline, 
+			"\n", "\r\n",NULL );
+	if (res == -1){
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
+				"Error getting Filenname to upload");
+		return -2;
+	}
+	int filefd = open( (char *) ap->comline.buf, O_RDONLY);
+	if ( filefd == -1 ) {
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Can't open %s", ap->comline.buf);
+		return -2;
+	}
+	struct stat statbuf;
+	if ( !fstat(filefd, &statbuf)){
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Couldn't stat %s", ap->comline.buf);
+		return -2;
+	}
+	int ret = advFileCopy( upfd, filefd, statbuf.st_size, (char *)ap->comline.buf, ap->semid, 
+			ap->logfd, ap->sigfd, confd);
+	/* readonly-> no EIO, signalfd-> no EINTR and EBADF unrealistic, necessary? */
+	if (-1 == close(filefd)) 
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Error closing file %s", 
+				ap->comline.buf);
+	return ret;
+}
+
+int advFileCopy(int destfd, int srcfd, unsigned long size, const char *name, 
+		int semid, int logfd, int sigfd, int confd){
+	return 1;
 }

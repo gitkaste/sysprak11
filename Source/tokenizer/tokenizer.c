@@ -186,7 +186,7 @@ int getTokenFromStream(int fd, struct buffer *buf, struct buffer *token, ...) {
 		}
 	}
 	va_end(ap);
-	if(t == 1) if(extractToken(buf, token, ts, tl, fl) == -1) return -1;
+	if (t == 1) if (extractToken(buf, token, ts, tl, fl) == -1) return -1;
 	return retval;
 }
 

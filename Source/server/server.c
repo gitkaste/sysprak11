@@ -87,7 +87,6 @@ int comfork(struct actionParameters *ap,
 			}
 
 			if(pollfds[0].revents & POLLIN) {    /* incoming client */
-
 				return (processIncomingData(ap, aap));
 			} else if(pollfds[1].revents & POLLIN) { /* incoming signal */
 				SRret = read(ap->sigfd, &fdsi, sizeof(struct signalfd_siginfo));
@@ -108,7 +107,6 @@ int comfork(struct actionParameters *ap,
 	}
 		return -2;
 }
-
 
 int main (int argc, char * argv[]){
 	char error[256];
@@ -208,11 +206,11 @@ int main (int argc, char * argv[]){
 					break;
 				case 0: /* I'm in the child */
 					close(sockfd);
+					close(ap.sigfd);
 					if ( (ap.sigfd = getSigfd(&mask)) <= 0 ){
 						fputs("error getting a new signal fd for the fork\n", stderr);
 						_exit(EXIT_FAILURE);
 					} else {
-						close(ap.sigfd);
 						aap.sap = &sap;
 						comret = comfork(&ap, &aap);
 						/* Do i need to do more */
@@ -240,7 +238,6 @@ int main (int argc, char * argv[]){
 				default:
 					logmsg(ap.semid, ap.logfd, LOGLEVEL_WARN,
 							"Encountered unknown signal on sigfd %d", fdsi.ssi_signo);
-
 			}
 		} else { /* Somethings broken with poll */
 			fprintf(stderr, "Dunno what to do with this poll");

@@ -20,6 +20,15 @@
 #include "client_protocol.h"
 #include "consoler.h"
 
+struct child {
+	unsigned char type;
+	pid_t pid;
+}
+
+struct array *addChildProcess(struct array *cpa, unsigned char type, pid t pid);
+int remChildProcess(struct array *cpa, pid t pid);
+int sendSignalToChildren(struct array *cpa, unsigned char type, int sig);
+
 void freecap(struct clientActionParameters* cap){
 	if (cap->usedres & CAPRES_OUTFD){
 		close(cap->outfd);
@@ -34,6 +43,7 @@ void freecap(struct clientActionParameters* cap){
 int initcap (struct clientActionParameters* cap, char error[256], struct config * conf){
 	int consoleinfd[2], consoleoutfd[2];
 	int size = conf->shm_size;
+
 	if ( (cap->shmid_results = shmCreate(size)) == -1)
 			return -1;
 	//fprintf(stderr, "shmid %d\n", cap->shmid_results);
@@ -45,6 +55,13 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		return -1;	
 	}
 	cap->usedres |= CAPRES_RESULTS;
+
+	if (!(cap->cpa = initArray(sizeof(struct ), size, cap->shmid_results))){
+		shmDelete(cap->shmid_results);
+		return -1;	
+	}
+
+		return -1;	
 
 	if (pipe2(consoleinfd, O_NONBLOCK) == -1 ||
 		 	pipe2(consoleoutfd, O_NONBLOCK) == -1) {
@@ -130,7 +147,7 @@ int processServerReply(struct actionParameters *ap,
 			return 1;
 		case 0:
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, 
-					"(processIncomingData) ap->comfd closed.\n");
+					"(processServerReply) ap->comfd closed.\n");
 			return 1;
 	}
 	/* Split into lines */
@@ -176,9 +193,13 @@ int main (int argc, char * argv[]){
 	aap.cap = &cap;
 	struct buffer msg;
 	char error[256];
-	int opt, passport;
+	uint16_t passport;
+	int opt, passsock;
 #define EXIT_NO (EXIT_FAILURE * 2+3)
 	int pSRret, shellReturn=EXIT_NO;
+	pid_t uploadpid;
+	socklen_t socklen = sizeof(struct sockaddr_in);
+	struct sockaddr_in peer_addr;
 
 	server_ip.s_addr = 0;
 
@@ -235,26 +256,42 @@ int main (int argc, char * argv[]){
 		goto error;
 	}
 
+	/* connecting to server. */
 	ap.comip = conf.ip;
 	ap.comport = conf.port;
 	if ( (ap.comfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
-		fputs("Error setting up network connection\n", stderr);
+		fputs("Error connecting to Server\n", stderr);
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
 	ap.usedres |= APRES_COMFD;
 
-	/* create a passive port to accecpt client connections. */
-	if ( (passport = createPassiveSocket(0)) == -1){
+	/* create a passive port to accept client connections. */
+	passport =  0;
+	if ( ( passsock = createPassiveSocket(&passport)) == -1){
 		fputs("Error setting up network connection\n", stderr);
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
-	
+
+	/* inform the server of our passive port */
+	if (-1 == writef( ap.comfd, "PORT %d", passport)){
+		perror("Coulnd't send my port to server");
+		shellReturn = EXIT_FAILURE;
+		goto error;
+	}	
+
+	/* send our file list */
+	if (-1 == writef( ap.comfd, "FILELIST" )){
+		perror("Coulnd't send my filelist to server");
+		shellReturn = EXIT_FAILURE;
+		goto error;
+	}	
+
 		/* Main Client Loop */
 	createBuf(&msg,4096);
 
-	struct pollfd pollfds[2];
+	struct pollfd pollfds[3];
 	/* Setting up stuff for Polling */
 	pollfds[0].fd = ap.comfd; /* communication with server */
 	pollfds[0].events = POLLIN;
@@ -262,6 +299,9 @@ int main (int argc, char * argv[]){
 	pollfds[1].fd = cap.infd; /* communication with user */
 	pollfds[1].events = POLLIN;
 	pollfds[1].revents = 0;
+	pollfds[2].fd = passsock; /* communication with user */
+	pollfds[2].events = POLLIN;
+	pollfds[2].revents = 0;
 		
 	while (1){ 
 		/* should i poll infinitely or a discrete time? */
@@ -274,8 +314,6 @@ int main (int argc, char * argv[]){
 			break;
 		}
 
-		//ap.comport = sizeof(ap.comip);
-		//passport = accept(sockfd, (struct sockaddr *) &(ap.comip), (socklen_t *)&(ap.comport));
 		if(pollfds[0].revents & POLLIN) {    /* Server greets us */
 		 	switch (pSRret = processServerReply(&ap,&aap)){
 				case -3:
@@ -291,30 +329,50 @@ int main (int argc, char * argv[]){
 					fprintf(stderr, "WTF did processServerReply just return: %d?\n",pSRret);
 					shellReturn = EXIT_FAILURE;
 			}
+			break;
 		} else if(pollfds[1].revents & POLLIN) { /* User commands us */
-			switch(readToBuf(cap.infd, &msg)){
-			case -2: /* EINTR */
-				continue;
-			case -1:
-				fputs("Error reading from user", stderr);
-				shellReturn = EXIT_FAILURE;
-				break;
-			case 0: /* end of file */
-					shellReturn = EXIT_SUCCESS;
-				break;
-			default:
+				switch (pSRret = processIncomingData(&ap,&aap)){
+				case -3:
+				case -1:
 					shellReturn = EXIT_FAILURE;
-				break;
+					break;
+				case -2:
+				case 0: 
+					shellReturn = EXIT_SUCCESS;
+					break;
+				default: 
+					if (pSRret ==1) continue;
+					fprintf(stderr, "WTF did processServerReply just return: %d?\n",pSRret);
+					shellReturn = EXIT_FAILURE;
 			}
+			break;
+		} else if(pollfds[2].revents & POLLIN) { /* Client connection incoming */
+			int uploadfd = accept(passsock, (struct sockaddr *) &peer_addr, &socklen);
+			if (!uploadfd) return -1;
+			switch(uploadpid = fork()){
+			case -1:
+				close(uploadfd);
+				perror("(client main) Problem forking when accepting client conn");
+				goto error;
+			case 0:
+				close(passsock);
+				_exit( handleUpload(uploadfd,cap.outfd,&ap) );
+			default:
+				close( uploadfd );
+			}
+			break;
 		} else if (pollfds[0].revents & POLLHUP) {
 			/*  server closed connection? */
 			shellReturn = EXIT_SUCCESS;
+			break;
 		} else if (pollfds[1].revents & POLLHUP) {
 			/*  user closed connection - how? */
 			shellReturn = EXIT_SUCCESS;
+			break;
 		} else {
 			fprintf(stderr, "Dunno what to do with this poll\n");
 			shellReturn = EXIT_FAILURE;
+			break;
 		}
 		/* logmsg(0, ap.logfd, LOGLEVEL_VERBOSE, "%s", msg); */
 		if (shellReturn != EXIT_NO) break;

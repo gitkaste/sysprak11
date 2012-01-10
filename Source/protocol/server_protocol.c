@@ -41,8 +41,9 @@
 
 struct protocol server_protocol = {
 	&unknownCommandAction,
-	4,
+	5,
 	{
+		{"FILELIST", "send my filelist to the Server.\n", &filelistAction},
 		{"STATUS", "STATUS returns Server-Status.\n", &statusAction},
 		{"QUIT", "QUIT closes the connection cleanly (probably).\n", &quitAction},
 		{"SEARCH", "SEARCH file to crawl the filelist).\n", &searchAction},
@@ -112,31 +113,6 @@ int helpAction(struct actionParameters *ap,
 		msg = stringBuilder("%s: %s\n", p->actions[i].actionName, p->actions[i].description);
 		reply(ap->comfd, ap->logfd, ap->semid, REP_TEXT,msg);
 		free(msg);
-	}
-	return 1;
-}
-
-int recvFileList(int sfd, struct actionParameters *ap,
-		struct serverActionParameters *sap){
-	int res;
-	struct flEntry file;
-	file.ip = ap->comip;
-	file.port = ap->comport;
-	struct array *fl2; 
-	while ( ( res = getTokenFromStream( sfd, &ap->combuf, &ap->comline, "\n", "\r\n",NULL ) ) ){
-		if (res ==  -1) return -1;
-		strcpy(file.filename, (char *)&ap->comline.buf);
-		res = getTokenFromStream( sfd, &ap->combuf, &ap->comword, "\n", "\r\n",NULL );
-		if (res ==  -1) return -1;
-		errno =0;
-		if ( (file.size = strtol((char *)ap->comword.buf, NULL, 10)) < 0 || errno)  return -1;
-
-		if (semWait(sap->shmid_filelist, SEM_FILELIST)) return -1;
-		fl2 = addArrayItem(sap->filelist, &file);
-		if (semSignal(sap->shmid_filelist, SEM_FILELIST)) return -1;
-
-		if (fl2) sap->filelist = fl2;
-		else return -1;
 	}
 	return 1;
 }
