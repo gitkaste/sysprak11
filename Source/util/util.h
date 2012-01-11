@@ -5,36 +5,30 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdarg.h>
-
 #include "signalfd.h"
 
-ssize_t writef (int fd, char *fmt, ...);
-char *stringBuilder (const char *fmt, ...);
-char *vStringBuilder (const char *fmt, va_list ap);
-
+/***************** BUFFERS *******************/
 struct buffer {
 	unsigned char *buf;
 	unsigned int bufmax;
 	unsigned int buflen;
 };
 
-/* Buffer Functions
- * createBuf creates a new buffer (including malloc)
- * copyBuf copies the contents from src to dest (overwriting dest)
- * flushBuf empties a buffer (sets buflen to 0)
- * freeBuf frees the malloced memory
- * 
- * returns -1 on error, 1 on success (for non-void functions)
-*/
+/* do the obvious */
 int createBuf(struct buffer *buf, unsigned int maxsize);
 int copyBuf (struct buffer *dest, struct buffer *src);
 void flushBuf(struct buffer *buf);
 void freeBuf(struct buffer *buf);
 
-ssize_t writeWrapper (int fd, const void *buf, size_t count);
 ssize_t readToBuf (int fd, struct buffer *buf);
 ssize_t writeBuf (int fd, struct buffer *buf);
+ssize_t writeWrapper(int fd, const void *buf, size_t count);
+ssize_t writef (int fd, char *fmt, ...);
+char *stringBuilder (const char *fmt, ...);
+char *vStringBuilder (const char *fmt, va_list ap);
 
+
+/***************** ARRAYS *******************/
 /* Unified structure for mem in shared mem segments as well as process local mem
  */
 struct array { 
@@ -42,27 +36,61 @@ struct array {
 	size_t itemsize;
 	unsigned long itemcount;
 	/* BUG, Direct quote from the shmat man page: 
-	*
 	* Be aware that the shared memory segment attached in this way may be attached
 	* at different addresses in different processes.  There‐ fore, any pointers
 	* maintained within the shared memory must be made relative (typically to the
-	* starting address of the segment), rather than absolute.  
+	* starting address of the segment), rather than absolute.
 	*/
 	void *mem;
 	int shmid; /* indicates the shared mem segment, -1 for normal arrays */ 
 };
 
+/* initialize the array, giving you a continous stretch of mem, with the describing struct in the beginning
+ * initial_size is exclusive of the size for the struct
+ * shmid is the shared mem id or -1 for malloc
+ * returns NULL for failure */
 struct array *initArray(size_t itemsize, size_t initial_size, int shmid);
+/* free the mem associated with the array */
 void freeArray(struct array *a);
+/* add a new item to the array, possibly resizing in the process, 
+ * returns the new (or old) array with the item attached
+ * be sure to not overwrite the old variable with the return so you can free still free it */
 struct array *addArrayItem(struct array *a, void *item);
+/* deletes an item (doesn't resize) */
 int remArrayItem(struct array *a, unsigned long num);
+/* works like [] for c arrays */
 void *getArrayItem(struct array *a, unsigned long num);
+/* an iterator, to be used like int i; while(iterateArray(a,&i)) foo */
 void *iterateArray(struct array *a, unsigned long *i);
 
+
+struct processChild {
+	unsigned char type;
+	pid_t pid;
+}
+
+struct array *addChildProcess(struct array *cpa, unsigned char type, pid_t pid);
+int remChildProcess(struct array *cpa, pid t pid);
+int sendSignalToChildren(struct array *cpa, unsigned char type, int sig);
+
+/***************** SHARED MEM *******************/
 /* functions for creating and deleting shared mem */
 int shmCreate(int id);
 int shmDelete(int size);
 #define IPC_KEY 39471
+
+
+/***************** SEMAPHORES *******************/
+/* functions for creating and deleting shared mem */
+#define SEM_LOGGER 0
+#define SEM_FILELIST 1
+#define SEM_CONSOLER 1
+#define SEM_RESULTS 2
+int semCreate(int num);
+int semWait(int semid, int semnum);
+int semSignal(int semid, int semnum);
+int semVal(int semid, int semnum);
+void semClose(int semgroupid);
 
 /* struct flEntry
  * Represents a file in the network.
@@ -80,19 +108,5 @@ int setFdNonblock(int fd);
 #define ETRAILING 177
 int sperror(char * pref, char * buf, int buflen);
 int mystrtol(char * buf);
-
-/* Semaphore defines */
-/* General */
-#define SEM_LOGGER 0
-/* Server */
-#define SEM_FILELIST 1
-/* Client */
-#define SEM_CONSOLER 1
-#define SEM_RESULTS 2
-int semCreate(int num);
-int semWait(int semid, int semnum);
-int semSignal(int semid, int semnum);
-int semVal(int semid, int semnum);
-void semClose(int semgroupid);
 
 #endif

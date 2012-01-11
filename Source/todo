@@ -1,3 +1,6 @@
 check for memory violations, e.g. freebuf 
 valgrind!
 filelistAction looks way off!
+More Error handling - Question all the questions
+More Documentation
+Signalfd im Client einrichten und pollen

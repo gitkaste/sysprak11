@@ -11,6 +11,7 @@ struct protocol stdin_protocol = {
 	2,
 	{
 		{"EXIT", "Quitting the client.\n", &stdin_exitAction},
+		{"SHOW", "Show download progress.\n", &stdin_showAction},
 		{"DOWNLOAD", "Download the nth. result in the result list.\n", 
 			&stdin_exitAction},
 		{"RESULTS", "Print out the results of a search to the user.\n", 
@@ -21,7 +22,11 @@ struct protocol stdin_protocol = {
 
 int passOnAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
-	return ( writef(ap->comfd, "%s %s", ap->comword, ap->comline) == -1 )? -2: -3;
+	return ( writef(aap->cap->serverfd, "%s %s", ap->comword, ap->comline) == -1 )? -2: -3; }
+
+int stdin_showAction(struct actionParameters *ap, 
+		union additionalActionParameters *aap){
+	return sendSignalToChildren( aap->cap->cpa, 'd', SIGUSR1 );
 }
 
 int stdin_resultsAction(struct actionParameters *ap, 

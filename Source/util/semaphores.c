@@ -38,6 +38,7 @@ int semWait(int semid, int semnum){
 	struct sembuf sbuf;
 	sbuf.sem_num = semnum;
 	sbuf.sem_op = -1;
+	sbuf.sem_flag = SEM_UNDO;
 	return semop(semid, &sbuf, 1);
 }
 
@@ -45,6 +46,7 @@ int semSignal(int semid, int semnum){
 	struct sembuf sbuf;
 	sbuf.sem_num = semnum;
 	sbuf.sem_op = 1;
+	sbuf.sem_flag = SEM_UNDO;
 	return semop(semid, &sbuf, 1);
 }
 

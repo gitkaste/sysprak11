@@ -167,7 +167,7 @@ int initap(struct actionParameters *ap, char error[256], struct config *conf, in
 
 	switch(ap->logpid = fork()){
 	case -1: 
-		sperror("Error forking", error, 256);
+		sperror("Forked up", error, 256);
 		close(logfilefd);
 		close(logfds[0]);
 		close(logfds[1]);

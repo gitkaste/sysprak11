@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <poll.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -19,15 +20,6 @@
 #include "protocol.h"
 #include "client_protocol.h"
 #include "consoler.h"
-
-struct child {
-	unsigned char type;
-	pid_t pid;
-}
-
-struct array *addChildProcess(struct array *cpa, unsigned char type, pid t pid);
-int remChildProcess(struct array *cpa, pid t pid);
-int sendSignalToChildren(struct array *cpa, unsigned char type, int sig);
 
 void freecap(struct clientActionParameters* cap){
 	if (cap->usedres & CAPRES_OUTFD){
@@ -50,23 +42,20 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 	cap->usedres = CAPRES_RESULTSSHMID;
 
 	size -= sizeof(struct array);
-	if (!(cap->results = initArray(sizeof(struct flEntry), size, cap->shmid_results))){
-		shmDelete(cap->shmid_results);
-		return -1;	
-	}
+	if (!(cap->results = initArray(sizeof(struct flEntry), size, 
+					cap->shmid_results)))
+		goto error;
 	cap->usedres |= CAPRES_RESULTS;
 
-	if (!(cap->cpa = initArray(sizeof(struct ), size, cap->shmid_results))){
-		shmDelete(cap->shmid_results);
-		return -1;	
-	}
-
-		return -1;	
+	if (!(cap->cpa = initArray(sizeof(struct processChild), 
+					64*sizeof(struct processChild), cap->shmid_results)))
+		goto error;
+	cap->usedres |= CAPRES_CPA;
 
 	if (pipe2(consoleinfd, O_NONBLOCK) == -1 ||
 		 	pipe2(consoleoutfd, O_NONBLOCK) == -1) {
 		sperror("Error creating pipe", error, 256);
-		return -1;
+		goto error;
 	}
 
 	/***** setup CONSOLER *****/
@@ -77,7 +66,7 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		close(consoleinfd[0]);
 		close(consoleinfd[1]);
 		sperror("Error forking", error, 256);
-		return -1;
+		goto error;
 	case 0: /* we are in the child - Sick */
 		close(consoleoutfd[1]); /* writing end of pipe pushing to stdout*/
 		close(consoleinfd[0]);  /* reading end of pipe fed from stdin*/
@@ -87,7 +76,8 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		/* Notation in the consoler function is reversed! */
 		/* outfd: Prog->Consoler->STDOUT*/
 		/* infd: STDIN->Consoler->Prog*/
-		consoler(cap->outfd, cap->infd);
+		if (consoler(cap->outfd, cap->infd) == -1)
+			goto error;
 		fprintf(stderr,"consoler shutting down\n");
 		freecap(cap);
 		exit(EXIT_SUCCESS);
@@ -97,8 +87,15 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		cap->infd = consoleinfd[0];
 		cap->outfd = consoleoutfd[1];
 		cap->usedres &= CAPRES_OUTFD;
+		/* i for interaction */
+		addChildProcess(cap->cpa, 'i', cap->conpid);
 	}
 	return 1;
+
+error:
+	freecap(cap);
+	return -1;	
+
 }
 
 void print_usage(char * prog){
@@ -358,6 +355,8 @@ int main (int argc, char * argv[]){
 				close(passsock);
 				_exit( handleUpload(uploadfd,cap.outfd,&ap) );
 			default:
+				/* u for upload */
+				addChildProcess(cap->cpa, 'u', cap->conpid);
 				close( uploadfd );
 			}
 			break;

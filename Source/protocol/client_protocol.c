@@ -59,6 +59,8 @@ int client_resultAction(struct actionParameters *ap,
 			int ret = recvResult(sockfd, ap,aap->cap->results);
 			return (ret == 1)? -2 : -3;
 		default:
+			/* r for resultAction */
+			addChildProcess(cap->cpa, 'r', cap->conpid);
 			return 1;
 	}
 }
@@ -87,6 +89,8 @@ int client_sendlistAction(struct actionParameters *ap,
 			int ret = parseDirToFD(sockfd, ap->conf->share, "");
 			return (ret == 1)? -2 : -3;
 		default:
+			/* s for sendlist */
+			addChildProcess(cap->cpa, 'u', cap->conpid);
 			return 1;
 	}
 }
