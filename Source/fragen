@@ -1,0 +1,4 @@
+Was raucht ihr?
+Ist conf eine globale Variable, bzw. wie funktioniert der LogFilter.
+Was ist der Unterschied zwischen ap->comfd und cap->serverfd?
+Wie funktoniert der Rückgabe wert bei Actions, bzw. proper shutdown?
