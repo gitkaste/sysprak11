@@ -6,6 +6,10 @@
 int passOnAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap);
 
+/* Prints out the progress from all active down- and upload progresses. */
+int stdin_showAction(struct actionParameters *ap, 
+		union additionalActionParameters *aap);
+
 /* Diese Funktion gibt die aktuellen Resultate einer Suche aus dem results-Array
  * aus.*/
 int stdin_resultsAction(struct actionParameters *ap, 

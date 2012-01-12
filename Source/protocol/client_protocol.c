@@ -60,7 +60,7 @@ int client_resultAction(struct actionParameters *ap,
 			return (ret == 1)? -2 : -3;
 		default:
 			/* r for resultAction */
-			addChildProcess(cap->cpa, 'r', cap->conpid);
+			addChildProcess(aap->cap->cpa, 'r', aap->cap->conpid);
 			return 1;
 	}
 }
@@ -90,7 +90,7 @@ int client_sendlistAction(struct actionParameters *ap,
 			return (ret == 1)? -2 : -3;
 		default:
 			/* s for sendlist */
-			addChildProcess(cap->cpa, 'u', cap->conpid);
+			addChildProcess(aap->cap->cpa, 'u', aap->cap->conpid);
 			return 1;
 	}
 }

@@ -25,7 +25,7 @@ int passOnAction(struct actionParameters *ap,
 	return ( writef(aap->cap->serverfd, "%s %s", ap->comword, ap->comline) == -1 )? -2: -3; }
 
 int stdin_showAction(struct actionParameters *ap, 
-		union additionalActionParameters *aap){
+		union additionalActionParameters *aap) {
 	return sendSignalToChildren( aap->cap->cpa, 'd', SIGUSR1 );
 }
 

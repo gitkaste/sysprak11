@@ -356,7 +356,7 @@ int main (int argc, char * argv[]){
 				_exit( handleUpload(uploadfd,cap.outfd,&ap) );
 			default:
 				/* u for upload */
-				addChildProcess(cap->cpa, 'u', cap->conpid);
+				addChildProcess(cap.cpa, 'u', cap.conpid);
 				close( uploadfd );
 			}
 			break;

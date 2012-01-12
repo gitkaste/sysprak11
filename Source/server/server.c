@@ -64,9 +64,8 @@ int comfork(struct actionParameters *ap,
 		return -3;
 	}else{
 		char buf[16];
-		fprintf(stderr, "Connection accepted from %s:%d\n",
-				inet_ntop(AF_INET, &ap->comip, buf, sizeof(buf)), 
-				ntohs(ap->comport));
+		if (1 == inet_ntop(AF_INET, &ap->comip, buf, sizeof(buf)))
+			fprintf(stderr, "Connection accepted from %s:%d\n", buf, ntohs(ap->comport));
 		/* BUGBUG: Hier muss gepolled werden. */
 
 		/* Setting up stuff for Polling */
@@ -195,8 +194,9 @@ int main (int argc, char * argv[]){
 			break;
 		}
 
-		fputs("another poll round\n", stderr);
+		fputs("another poll round\t", stderr);
 		if(pollfds[0].revents & POLLIN) {    /* incoming client */
+			fputs("new client\n", stderr);
 			ap.comport = sizeof(ap.comip);
 			ap.comfd = accept(sockfd, (struct sockaddr *) &(ap.comip), (socklen_t *)&(ap.comport));
 			switch ((forkret = fork())){
@@ -220,6 +220,7 @@ int main (int argc, char * argv[]){
 					close(ap.comfd);
 			}
 		} else if(pollfds[1].revents & POLLIN) { /* incoming signal */
+			fputs("incoming signal\n", stderr);
 			SRret = read(ap.sigfd, &fdsi, sizeof(struct signalfd_siginfo));
 			if (SRret != sizeof(struct signalfd_siginfo)){
 				fprintf(stderr, "signalfd returned something broken");

@@ -67,10 +67,10 @@ void *iterateArray(struct array *a, unsigned long *i);
 struct processChild {
 	unsigned char type;
 	pid_t pid;
-}
+};
 
 struct array *addChildProcess(struct array *cpa, unsigned char type, pid_t pid);
-int remChildProcess(struct array *cpa, pid t pid);
+int remChildProcess(struct array *cpa, pid_t pid);
 int sendSignalToChildren(struct array *cpa, unsigned char type, int sig);
 
 /***************** SHARED MEM *******************/

@@ -58,12 +58,10 @@ int logmsg(int semid, int pipefd, int loglevel, const char *fmt, ...){
 	buf.bufmax = strlen(ret) +1;
 	buf.buflen = strlen(ret);
 
-	fputs("entering logmsg", stderr);
 	if (semWait(semid, SEM_LOGGER) ==-1) {
 		freeBuf(&buf);
 		return -1;
 	}
-	fputs("done waiting\n", stderr);
 	ssize_t written = writeBuf(pipefd, &buf);
 	freeBuf(&buf);
 	if (semSignal(semid, SEM_LOGGER) ==-1) return -1;
