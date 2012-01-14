@@ -258,11 +258,13 @@ int main (int argc, char * argv[]){
 		goto error;
 	}
 
+	int errf = fopen("nasenbaer", O_APPEND|O_CREAT|O_RDWR, S_IRUSR| S_IWUSR);
+	FILE *errfile = fdopen(errf, "a+");
 	/* connecting to server. */
 	ap.comip = conf.ip;
 	ap.comport = conf.port;
 	if ( (ap.comfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
-		fputs("Error connecting to Server\n", stderr);
+		fputs("Error connecting to Server\n", errfile);
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
@@ -384,10 +386,10 @@ int main (int argc, char * argv[]){
 	puts("end of loop");
 
 error:
-	fprintf(stderr, "tear down");
+	fprintf(errfile, "tear down");
 	freeBuf(&msg);
 	close(passport);
-	fprintf(stderr, "even");
+	fprintf(errfile, "even");
 	freeap(&ap);
 	fprintf(stderr, "further");
 	freecap(&cap); /* closes all open file handles with the consoler */
