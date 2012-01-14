@@ -14,7 +14,7 @@ int mystrtol(char * buf){
 	errno = 0;
 	int nr = strtol(buf, &endptr, 10);
 	while (*endptr != '\0') {
-		if (!(isspace(endptr++))) {
+		if (!(isspace(*endptr++))) {
 			errno = ETRAILING;
 			break;
 		}

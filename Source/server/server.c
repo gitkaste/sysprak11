@@ -58,14 +58,15 @@ int comfork(struct actionParameters *ap,
 	struct pollfd pollfds[2];
   struct signalfd_siginfo fdsi;
   ssize_t SRret;
-	socklen_t addrlen = sizeof(struct sockaddr);
+	socklen_t addrlen = sizeof(struct sockaddr_in);
 
 	if (ap->comfd == -1){
 		perror("Error accepting a connection");
 		return -3;
 	}else{
 		char buf[16];
-		if (!getpeername (ap->comfd, (struct sockaddr *)&ap->comip, &addrlen))
+		memset (&ap->comip, 0, addrlen);
+		if (!getpeername (ap->comfd, (struct sockaddr *)&ap->comip, &addrlen) || addrlen != sizeof(struct sockaddr_in))
 			if (inet_ntop(AF_INET, &ap->comip, buf, sizeof(buf)))
 				fprintf(stderr, "Connection accepted from %s:%d\n", buf, ntohs(ap->comport));
 		/* BUGBUG: Hier muss gepolled werden. */
@@ -138,7 +139,7 @@ int main (int argc, char * argv[]){
 	if ( optind == (argc-1) )
 		conffilename = argv[optind];
 	
-	if ( initConf(conffilename, &conf, error) == -1 ){
+	if ( confDefault(conffilename, &conf, error) == -1 ){
 		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}

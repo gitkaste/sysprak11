@@ -23,6 +23,7 @@
 
 void freecap(struct clientActionParameters* cap){
 	if (cap->usedres & CAPRES_OUTFD){
+		fprintf(stderr, "killing console fd");
 		close(cap->outfd);
 		close(cap->infd);
 	}
@@ -38,7 +39,6 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 
 	if ( (cap->shmid_results = shmCreate(size)) == -1)
 			return -1;
-	//fprintf(stderr, "shmid %d\n", cap->shmid_results);
 	cap->usedres = CAPRES_RESULTSSHMID;
 
 	size -= sizeof(struct array);
@@ -52,11 +52,12 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		goto error;
 	cap->usedres |= CAPRES_CPA;
 
+	fprintf(stderr, "pipes in %d %d  out %d %d", consoleinfd [0], consoleinfd[1], consoleoutfd[0],consoleoutfd[1]); 
 	if (pipe2(consoleinfd, O_NONBLOCK) == -1 ||
 		 	pipe2(consoleoutfd, O_NONBLOCK) == -1) {
 		sperror("Error creating pipe", error, 256);
 		goto error;
-	}
+}
 
 	/***** setup CONSOLER *****/
 	switch(cap->conpid = fork()){
@@ -68,6 +69,8 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		sperror("Error forking", error, 256);
 		goto error;
 	case 0: /* we are in the child - Sick */
+	fprintf(stderr, "pipes in %d %d  out %d %d", consoleinfd [0], consoleinfd[1], consoleoutfd[0],consoleoutfd[1]) ;
+fflush(stderr);
 		close(consoleoutfd[1]); /* writing end of pipe pushing to stdout*/
 		close(consoleinfd[0]);  /* reading end of pipe fed from stdin*/
 		cap->infd = consoleinfd[1];
@@ -82,6 +85,8 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		freecap(cap);
 		exit(EXIT_SUCCESS);
 	default: /* we are in the parent - Hope for Total she is female :P */
+	fprintf(stderr, "pipes in %d %d  out %d %d", consoleinfd [0], consoleinfd[1], consoleoutfd[0],consoleoutfd[1]) ;
+fflush(stderr);
 		close(consoleoutfd[0]); /* reading end of the pipe going from client to stdout*/
 		close(consoleinfd[1]); /* writing end of the pipe feeding us stdin */
 		cap->infd = consoleinfd[0];
@@ -379,9 +384,12 @@ int main (int argc, char * argv[]){
 	puts("end of loop");
 
 error:
+	fprintf(stderr, "tear down");
 	freeBuf(&msg);
 	close(passport);
+	fprintf(stderr, "even");
 	freeap(&ap);
+	fprintf(stderr, "further");
 	freecap(&cap); /* closes all open file handles with the consoler */
 	if ( waitpid(cap.conpid, NULL, 0) < 0){
 		puts("Did Burpy: Unclean Shutdown - Sorry\n");
