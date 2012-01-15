@@ -52,7 +52,6 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		goto error;
 	cap->usedres |= CAPRES_CPA;
 
-	fprintf(stderr, "pipes in %d %d  out %d %d", consoleinfd [0], consoleinfd[1], consoleoutfd[0],consoleoutfd[1]); 
 	if (pipe2(consoleinfd, O_NONBLOCK) == -1 ||
 		 	pipe2(consoleoutfd, O_NONBLOCK) == -1) {
 		sperror("Error creating pipe", error, 256);
@@ -69,29 +68,24 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		sperror("Error forking", error, 256);
 		goto error;
 	case 0: /* we are in the child - Sick */
-	fprintf(stderr, "pipes in %d %d  out %d %d", consoleinfd [0], consoleinfd[1], consoleoutfd[0],consoleoutfd[1]) ;
-fflush(stderr);
 		close(consoleoutfd[1]); /* writing end of pipe pushing to stdout*/
 		close(consoleinfd[0]);  /* reading end of pipe fed from stdin*/
 		cap->infd = consoleinfd[1];
 		cap->outfd = consoleoutfd[0];
-		cap->usedres &= CAPRES_OUTFD;
+		cap->usedres |= CAPRES_OUTFD;
 		/* Notation in the consoler function is reversed! */
 		/* outfd: Prog->Consoler->STDOUT*/
 		/* infd: STDIN->Consoler->Prog*/
 		if (consoler(cap->outfd, cap->infd) == -1)
 			goto error;
-		fprintf(stderr,"consoler shutting down\n");
 		freecap(cap);
 		exit(EXIT_SUCCESS);
 	default: /* we are in the parent - Hope for Total she is female :P */
-	fprintf(stderr, "pipes in %d %d  out %d %d", consoleinfd [0], consoleinfd[1], consoleoutfd[0],consoleoutfd[1]) ;
-fflush(stderr);
 		close(consoleoutfd[0]); /* reading end of the pipe going from client to stdout*/
 		close(consoleinfd[1]); /* writing end of the pipe feeding us stdin */
 		cap->infd = consoleinfd[0];
 		cap->outfd = consoleoutfd[1];
-		cap->usedres &= CAPRES_OUTFD;
+		cap->usedres |= CAPRES_OUTFD;
 		/* i for interaction */
 		addChildProcess(cap->cpa, 'i', cap->conpid);
 	}
@@ -258,13 +252,10 @@ int main (int argc, char * argv[]){
 		goto error;
 	}
 
-	int errf = fopen("nasenbaer", O_APPEND|O_CREAT|O_RDWR, S_IRUSR| S_IWUSR);
-	FILE *errfile = fdopen(errf, "a+");
 	/* connecting to server. */
 	ap.comip = conf.ip;
 	ap.comport = conf.port;
 	if ( (ap.comfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
-		fputs("Error connecting to Server\n", errfile);
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
@@ -386,12 +377,9 @@ int main (int argc, char * argv[]){
 	puts("end of loop");
 
 error:
-	fprintf(errfile, "tear down");
 	freeBuf(&msg);
 	close(passport);
-	fprintf(errfile, "even");
 	freeap(&ap);
-	fprintf(stderr, "further");
 	freecap(&cap); /* closes all open file handles with the consoler */
 	if ( waitpid(cap.conpid, NULL, 0) < 0){
 		puts("Did Burpy: Unclean Shutdown - Sorry\n");

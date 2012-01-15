@@ -7,6 +7,7 @@ clean test:
 	$(MAKE) -C client $@
 	$(MAKE) -C protocol $@
 	$(MAKE) -C consoler $@
+	$(MAKE) -C config $@
 
 server client: 
 	$(MAKE) -C $@ $@

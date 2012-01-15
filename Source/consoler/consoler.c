@@ -185,7 +185,6 @@ int consoler(int infd, int outfd) {
 				stdinbuf.buf);
 		}
 		else if(pollfds[1].revents & POLLIN) {
-			fprintf(stderr, "1 zweig");
 			/* Stuff from STDIN wants to go to outfd */
 			gwret = getcharWrapper(&stdinbuf);
 			if (gwret == 1) { /* New Line ! */

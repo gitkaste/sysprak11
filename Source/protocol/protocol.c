@@ -160,7 +160,7 @@ int initap(struct actionParameters *ap, char error[256], struct config *conf, in
 		goto error;
 	}
 
-	if (pipe2(logfds, O_NONBLOCK) == -1) {
+	if (pipe2(logfds, 0) == -1) {
 		sperror("Error creating pipe", error, 256);
 		goto error;
 	}

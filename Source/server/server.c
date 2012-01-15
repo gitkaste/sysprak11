@@ -139,7 +139,7 @@ int main (int argc, char * argv[]){
 	if ( optind == (argc-1) )
 		conffilename = argv[optind];
 	
-	if ( confDefault(conffilename, &conf, error) == -1 ){
+	if ( initConf(conffilename, &conf, error) == -1 ){
 		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}
