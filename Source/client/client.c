@@ -34,7 +34,7 @@ void freecap(struct clientActionParameters* cap){
 }
 
 int initcap (struct clientActionParameters* cap, char error[256], struct config * conf){
-	int consoleinfd[2], consoleoutfd[2];
+	int toConsoler[2], fromConsoler[2];
 	int size = conf->shm_size;
 
 	if ( (cap->shmid_results = shmCreate(size)) == -1)
@@ -52,8 +52,8 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		goto error;
 	cap->usedres |= CAPRES_CPA;
 
-	if (pipe2(consoleinfd, O_NONBLOCK) == -1 ||
-		 	pipe2(consoleoutfd, O_NONBLOCK) == -1) {
+	if (pipe2(toConsoler, O_NONBLOCK) == -1 ||
+		 	pipe2(fromConsoler, O_NONBLOCK) == -1) {
 		sperror("Error creating pipe", error, 256);
 		goto error;
 }
@@ -61,17 +61,17 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 	/***** setup CONSOLER *****/
 	switch(cap->conpid = fork()){
 	case -1: 
-		close(consoleoutfd[0]);
-		close(consoleoutfd[1]);
-		close(consoleinfd[0]);
-		close(consoleinfd[1]);
+		close(fromConsoler[0]);
+		close(fromConsoler[1]);
+		close(toConsoler[0]);
+		close(toConsoler[1]);
 		sperror("Error forking", error, 256);
 		goto error;
 	case 0: /* we are in the child - Sick */
-		close(consoleoutfd[1]); /* writing end of pipe pushing to stdout*/
-		close(consoleinfd[0]);  /* reading end of pipe fed from stdin*/
-		cap->infd = consoleinfd[1];
-		cap->outfd = consoleoutfd[0];
+		close(toConsoler[1]); /* writing end of pipe pushing to stdout*/
+		close(fromConsoler[0]);  /* reading end of pipe fed from stdin*/
+		cap->infd = fromConsoler[1];
+		cap->outfd = toConsoler[0];
 		cap->usedres |= CAPRES_OUTFD;
 		/* Notation in the consoler function is reversed! */
 		/* outfd: Prog->Consoler->STDOUT*/
@@ -81,10 +81,10 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		freecap(cap);
 		exit(EXIT_SUCCESS);
 	default: /* we are in the parent - Hope for Total she is female :P */
-		close(consoleoutfd[0]); /* reading end of the pipe going from client to stdout*/
-		close(consoleinfd[1]); /* writing end of the pipe feeding us stdin */
-		cap->infd = consoleinfd[0];
-		cap->outfd = consoleoutfd[1];
+		close(toConsoler[0]); /* reading end of the pipe going from client to stdout*/
+		close(fromConsoler[1]); /* writing end of the pipe feeding us stdin */
+		cap->outfd = toConsoler[1];
+		cap->infd = fromConsoler[0];
 		cap->usedres |= CAPRES_OUTFD;
 		/* i for interaction */
 		addChildProcess(cap->cpa, 'i', cap->conpid);
@@ -203,7 +203,7 @@ int main (int argc, char * argv[]){
   while ((opt = getopt(argc, argv, "i:p:c:")) != -1) {
 		switch (opt) {
 			case 'c':
-				conffilename = optarg;
+				conffilename = strdup(optarg);
         break;
       case 'p':
 				errno =0;
@@ -256,6 +256,7 @@ int main (int argc, char * argv[]){
 	ap.comip = conf.ip;
 	ap.comport = conf.port;
 	if ( (ap.comfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
+		fputs("error connecting to server", stderr);
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
@@ -282,7 +283,8 @@ int main (int argc, char * argv[]){
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}	
-
+  consolemsg(ap.semid, aap.cap->outfd, "successfully connected to server");
+	fflush(stdout);
 		/* Main Client Loop */
 	createBuf(&msg,4096);
 
@@ -300,9 +302,7 @@ int main (int argc, char * argv[]){
 		
 	while (1){ 
 		/* should i poll infinitely or a discrete time? */
-		int pollret = poll(pollfds, 2, -1);
-
-		if (pollret < 0 || pollret == 0) {
+		if (	poll(pollfds, 2, -1) <0) {
 			if (errno == EINTR) continue; /* Signals */
 			fprintf(stderr, "POLLING Error.\n");
 			shellReturn = EXIT_FAILURE;
@@ -326,7 +326,11 @@ int main (int argc, char * argv[]){
 			}
 			break;
 		} else if(pollfds[1].revents & POLLIN) { /* User commands us */
-				switch (pSRret = processIncomingData(&ap,&aap)){
+				fprintf(stderr, "user talking here:%s", ap.combuf.buf); 
+				pSRret = processIncomingData(&ap,&aap);
+				fprintf(stderr, "%d\n", pSRret);
+				fflush(stderr);
+				switch (pSRret){
 				case -3:
 				case -1:
 					shellReturn = EXIT_FAILURE;
