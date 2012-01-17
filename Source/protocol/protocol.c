@@ -59,10 +59,11 @@ int processIncomingData(struct actionParameters *ap,
 		return 0;
 	}
 	
-	/* tokenize all lines recieved and process them */
+	fprintf(stderr,"read: %s", ap->combuf.buf);
+	/* tokenize all lines received and process them */
 	while((gtfsret = getTokenFromStreamBuffer(&ap->combuf,
 			&ap->comline, "\r\n", "\n", (char *)NULL)) > 0) {
-		printf("read: %s", ap->comline.buf);
+		fprintf(stderr,"read: %s", ap->comline.buf);
 		if((pcret = processCommand(ap, aap)) <= 0) return pcret;
 		/* NOTE: Remaining content in comline will be overwritten
 		 * by getTokenFrom*(). */
@@ -111,11 +112,11 @@ action validateToken(struct buffer *token, struct protocol *prot) {
 
 /* This function needs to return gracefully! Either it succeeds completely
  * or rolls back any and every open ressource */
-int initap(struct actionParameters *ap, char error[256], struct config *conf, int semcount){
+int initap(struct actionParameters *ap, char emsg[256], struct config *conf, int semcount){
 	int logfds[2];
 	int logfilefd;
 	/***** Setup BUFFERS *****/
-	strncpy(error, "Couldn't create buffers, out of mem", 256);
+	strncpy(emsg, "Couldn't create buffers, out of mem", 256);
 	if (createBuf(&(ap->combuf),4096) == -1 )
 		return -1;
 	else ap->usedres = APRES_COMBUF;
@@ -130,7 +131,7 @@ int initap(struct actionParameters *ap, char error[256], struct config *conf, in
 
 	/***** Setup Semaphores *****/
 	if ( (ap->semid = semCreate(semcount)) == -1 ){
-		sperror("Can't create semaphores", error, 256);
+		sperror("Can't create semaphores", emsg, 256);
 		goto error;
 	} else
 		ap->usedres |= APRES_SEMID;
@@ -144,7 +145,7 @@ int initap(struct actionParameters *ap, char error[256], struct config *conf, in
 		 	S_IRUSR|S_IWUSR|S_IRGRP );
 
 	if ( logfilefd == -1 ) {
-		sperror("error opening log file, i won't create a path for you", error, 256);
+		sperror("error opening log file, i won't create a path for you", emsg, 256);
 		goto error;
 	}
 
@@ -156,18 +157,18 @@ int initap(struct actionParameters *ap, char error[256], struct config *conf, in
 	if ( !(strftime(s, 255, "====Starting up client on %c====\n", t)) ) return -1;
 
 	if ( -1 == writeWrapper(logfilefd, s, strlen(s))){
-		sperror("error writing to log file", error, 256);
+		sperror("error writing to log file", emsg, 256);
 		goto error;
 	}
 
 	if (pipe2(logfds, 0) == -1) {
-		sperror("Error creating pipe", error, 256);
+		sperror("Error creating pipe", emsg, 256);
 		goto error;
 	}
 
 	switch(ap->logpid = fork()){
 	case -1: 
-		sperror("Forked up", error, 256);
+		sperror("Forked up", emsg, 256);
 		close(logfilefd);
 		close(logfds[0]);
 		close(logfds[1]);
