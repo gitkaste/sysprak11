@@ -23,7 +23,6 @@
 
 void freecap(struct clientActionParameters* cap){
 	if (cap->usedres & CAPRES_OUTFD){
-		fprintf(stderr, "killing console fd");
 		close(cap->outfd);
 		close(cap->infd);
 	}
@@ -94,7 +93,6 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 error:
 	freecap(cap);
 	return -1;	
-
 }
 
 void print_usage(char * prog){
@@ -271,14 +269,14 @@ int main (int argc, char * argv[]){
 	}
 
 	/* inform the server of our passive port */
-	if (-1 == writef( ap.comfd, "PORT %d", passport)){
+	if (-1 == writef( ap.comfd, "PORT %d\n", passport)){
 		perror("Coulnd't send my port to server");
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}	
 
 	/* send our file list */
-	if (-1 == writef( ap.comfd, "FILELIST" )){
+	if (-1 == writef( ap.comfd, "FILELIST\n" )){
 		perror("Coulnd't send my filelist to server");
 		shellReturn = EXIT_FAILURE;
 		goto error;
@@ -299,8 +297,10 @@ int main (int argc, char * argv[]){
 	pollfds[2].fd = passsock; /* communication with other client */
 	pollfds[2].events = POLLIN;
 	pollfds[2].revents = 0;
-		
-	while (1){ 
+
+	fprintf(stderr,"%d\n",processServerReply(&ap,&aap));
+
+	while (0){ 
 		/* should i poll infinitely or a discrete time? */
 		if (	poll(pollfds, 2, -1) <= 0) {
 			if ( errno == EINTR ) continue; /* Signals */
@@ -368,8 +368,7 @@ int main (int argc, char * argv[]){
 			shellReturn = EXIT_SUCCESS;
 			break;
 		} else if (pollfds[1].revents & POLLHUP) {
-
-			/*  user closed connection - how? */
+			/*  user closed connection - possible? */
 			shellReturn = EXIT_SUCCESS;
 			break;
 		} else {
@@ -380,14 +379,14 @@ int main (int argc, char * argv[]){
 		/* logmsg(0, ap.logfd, LOGLEVEL_VERBOSE, "%s", msg); */
 		if (shellReturn != EXIT_NO) break;
 	}
-	puts("end of loop");
+	puts("end of loop\n");
 
 error:
 	freeBuf(&msg);
 	close(passport);
 	freeap(&ap);
 	freecap(&cap); /* closes all open file handles with the consoler */
-	if ( waitpid(cap.conpid, NULL, 0) < 0){
+	if ( waitpid(cap.conpid, NULL, 0) < 0 ||  waitpid(ap.logpid, NULL, 0) < 0){
 		puts("Did Burpy: Unclean Shutdown - Sorry\n");
 		exit(shellReturn);
 	}

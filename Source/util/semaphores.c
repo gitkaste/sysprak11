@@ -18,7 +18,7 @@ int semCreate(int num){
 		return -1;
 	}
 	union semun semopts;
-	unsigned short int sem_array[num];
+	unsigned short int sem_array[num]; /* gotta love VLAs */
 	int i = 0;
 /*	struct semid_ds mysemds;
 	semopts.buf = &mysemds;

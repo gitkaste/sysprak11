@@ -59,7 +59,7 @@ int processIncomingData(struct actionParameters *ap,
 		return 0;
 	}
 	
-	fprintf(stderr,"read1: %s", ap->combuf.buf);
+	fprintf(stderr,"read1: %s\n", ap->combuf.buf);
 	/* tokenize all lines received and process them */
 	while((gtfsret = getTokenFromStreamBuffer(&ap->combuf,
 			&ap->comline, "\r\n", "\n", (char *)NULL)) > 0) {
