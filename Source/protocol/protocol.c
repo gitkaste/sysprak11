@@ -59,7 +59,7 @@ int processIncomingData(struct actionParameters *ap,
 		return 0;
 	}
 	
-	fprintf(stderr,"read: %s", ap->combuf.buf);
+	fprintf(stderr,"read1: %s", ap->combuf.buf);
 	/* tokenize all lines received and process them */
 	while((gtfsret = getTokenFromStreamBuffer(&ap->combuf,
 			&ap->comline, "\r\n", "\n", (char *)NULL)) > 0) {
@@ -134,6 +134,7 @@ int initap(struct actionParameters *ap, char emsg[256], struct config *conf, int
 		sperror("Can't create semaphores", emsg, 256);
 		goto error;
 	} else
+		fprintf(stderr, "%d\n", ap->semid);
 		ap->usedres |= APRES_SEMID;
 
 	ap->comfd = 0;

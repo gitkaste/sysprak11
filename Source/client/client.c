@@ -56,7 +56,7 @@ int initcap (struct clientActionParameters* cap, char error[256], struct config 
 		 	pipe2(fromConsoler, O_NONBLOCK) == -1) {
 		sperror("Error creating pipe", error, 256);
 		goto error;
-}
+	}
 
 	/***** setup CONSOLER *****/
 	switch(cap->conpid = fork()){
@@ -144,7 +144,7 @@ int processServerReply(struct actionParameters *ap,
 		case 0:
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, 
 					"(processServerReply) ap->comfd closed.\n");
-			return 1;
+			return -1;
 	}
 	/* Split into lines */
 	while((gtfsret = getTokenFromStreamBuffer( &ap->combuf,
@@ -296,14 +296,15 @@ int main (int argc, char * argv[]){
 	pollfds[1].fd = cap.infd; /* communication with user */
 	pollfds[1].events = POLLIN;
 	pollfds[1].revents = 0;
-	pollfds[2].fd = passsock; /* communication with user */
+	pollfds[2].fd = passsock; /* communication with other client */
 	pollfds[2].events = POLLIN;
 	pollfds[2].revents = 0;
 		
 	while (1){ 
 		/* should i poll infinitely or a discrete time? */
-		if (	poll(pollfds, 2, -1) <0) {
-			if (errno == EINTR) continue; /* Signals */
+		if (	poll(pollfds, 2, -1) <= 0) {
+			if ( errno == EINTR ) continue; /* Signals */
+
 			fprintf(stderr, "POLLING Error.\n");
 			shellReturn = EXIT_FAILURE;
 			break;
@@ -367,6 +368,7 @@ int main (int argc, char * argv[]){
 			shellReturn = EXIT_SUCCESS;
 			break;
 		} else if (pollfds[1].revents & POLLHUP) {
+
 			/*  user closed connection - how? */
 			shellReturn = EXIT_SUCCESS;
 			break;

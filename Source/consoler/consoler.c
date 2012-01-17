@@ -123,7 +123,6 @@ int consoler(int infd, int outfd) {
 	struct pollfd pollfds[2];
 	int pollret;
 
-	
 	/* Set Terminal raw */
 	raw(STDIN_FILENO, &new_io, &old_io);
 	
@@ -189,6 +188,7 @@ int consoler(int infd, int outfd) {
 			gwret = getcharWrapper(&stdinbuf);
 			if (gwret == 1) { /* New Line ! */
 				writef(STDOUT_FILENO, "\r>> ");
+				fprintf(stderr, "read %s\n",(char *)stdinbuf.buf);
 				if(writeBuf(outfd, &stdinbuf) < 0) {
 					/* probably other side of pipe
 					 * was closed */
@@ -235,8 +235,10 @@ int consolemsg(int semid, int pipefd, const char *fmt, ...) {
 	p = vStringBuilder(fmt, ap);
 	va_end(ap);
 	
+	fprintf(stderr, "waiting on sem");
 	if(semWait(semid, SEM_CONSOLER) == -1) return -1;
 	if(writeWrapper(pipefd, p, strlen(p)) < 0) return -1;
+	fprintf(stderr, "done waiting on sem\n");
 	free(p);
 	if(semSignal(semid, SEM_CONSOLER) == -1) return -1;
 	

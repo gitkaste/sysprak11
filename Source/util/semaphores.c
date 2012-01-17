@@ -18,6 +18,8 @@ int semCreate(int num){
 		return -1;
 	}
 	union semun semopts;
+	unsigned short int sem_array[num];
+	int i = 0;
 /*	struct semid_ds mysemds;
 	semopts.buf = &mysemds;
 	if(semctl(semid, 0, IPC_STAT, semopts) == -1) {
@@ -30,8 +32,11 @@ int semCreate(int num){
           perror("semctl");
 					return -1;
 	}*/
-	semopts.val=1;
-	return (semctl(semid, 0, SETVAL, semopts) == -1)? (perror("Creating semaphors"),-1): semid;
+	for (i =0 ; i< num; i++){
+		sem_array[i] = 1;
+	}
+	semopts.array = sem_array;
+	return (semctl(semid, 0, SETALL, semopts) == -1)? (perror("Creating semaphors"),-1): semid;
 }
 
 int semWait(int semid, int semnum){
