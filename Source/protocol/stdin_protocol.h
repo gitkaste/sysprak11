@@ -1,5 +1,8 @@
 #include "protocol.h"
 
+/* Initialisiert das Protokoll */
+int initializeStdinProtocol(struct actionParameters *ap);
+
 /* Dies ist die Standaraktion defaultAction im Rahmen der Spezifikation des 
  * Protokolls. Die Eingabe wird einfach an den Server weitergschickt. Beachten 
  * Sie, dass Sie die Eingabe unter Umständen rekonstruieren müssen. */

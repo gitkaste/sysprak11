@@ -8,7 +8,7 @@
 
 struct protocol stdin_protocol = {
 	&passOnAction,
-	2,
+	5,
 	{
 		{"EXIT", "Quitting the client.\n", &stdin_exitAction},
 		{"SHOW", "Show download progress.\n", &stdin_showAction},
@@ -19,6 +19,11 @@ struct protocol stdin_protocol = {
 		{"HELP", "HELP prints this help.\n", &stdin_helpAction}
 	}
 };
+
+int initializeStdinProtocol(struct actionParameters *ap) {
+	ap->prot = &stdin_protocol;
+	return 1;
+}
 
 int passOnAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){

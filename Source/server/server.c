@@ -16,6 +16,7 @@
 #include "logger.h"
 #include "util.h"
 #include "consoler.h"
+#include "server_protocol.h"
 #include "protocol.h"
 #include "connection.h"
 #include "signalfd.h"
@@ -79,7 +80,7 @@ int comfork(struct actionParameters *ap,
 		pollfds[1].events = POLLIN;
 		pollfds[1].revents = 0;
 
-		while (1){
+		while (1) {
 			pollret = poll(pollfds, 2, -1);
 
 			if (pollret < 0 || pollret == 0) {
@@ -88,13 +89,31 @@ int comfork(struct actionParameters *ap,
 				return -3;
 			}
 
-			if(pollfds[0].revents & POLLIN) {    /* incoming client */
-				return (processIncomingData(ap, aap));
+			if(pollfds[0].revents & POLLIN) {  /* client calls */
+				switch(processIncomingData(ap, aap)){
+					case -1:
+						logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
+							"FATAL (comfork): processIncomingData errored.\n");
+						return -1;
+					case -2:
+						logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE,
+							"VERBOSE (comfork): child %d quit with success.\n");
+						break;
+					case -3:
+						logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN,
+							"WARNING (comfork): client %d gave an error.\n");
+						break;
+					case 0:
+						logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE,
+							"VERBOSE (comfork): client hung up\n");
+						return 1;
+				}
+
 			} else if(pollfds[1].revents & POLLIN) { /* incoming signal */
 				SRret = read(ap->sigfd, &fdsi, sizeof(struct signalfd_siginfo));
-				if (SRret != sizeof(struct signalfd_siginfo)){
+				if (SRret != sizeof(struct signalfd_siginfo)) {
 					fprintf(stderr, "signalfd returned something broken");
-					return -3;
+					return -1;
 				}
 				switch(fdsi.ssi_signo){
 					case SIGINT:
@@ -107,7 +126,6 @@ int comfork(struct actionParameters *ap,
 			}
 		}
 	}
-		return -2;
 }
 
 int main (int argc, char * argv[]){
@@ -120,9 +138,10 @@ int main (int argc, char * argv[]){
 	union additionalActionParameters aap;
 	const int numsems = 2;
 	int opt, forkret,comret;
-	sigset_t mask;
   struct signalfd_siginfo fdsi;
   ssize_t SRret;
+	sigset_t mask;
+
 #define EXIT_NO (EXIT_FAILURE * 2+3)
 	char shellReturn = EXIT_NO;
   while ((opt = getopt(argc, argv, "ipc")) != -1) {
@@ -148,6 +167,7 @@ int main (int argc, char * argv[]){
 		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}
+	initializeServerProtocol(&ap); 
 
 	if (initsap(&sap, error, &conf) == -1){
 		freeap(&ap);
@@ -163,20 +183,6 @@ int main (int argc, char * argv[]){
 		exit(EXIT_FAILURE);
 	}
 
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGINT);
-  sigaddset(&mask, SIGQUIT);
-  sigaddset(&mask, SIGCHLD);
-  if ( (ap.sigfd = getSigfd(&mask)) < 0 ){
-		fputs("error getting a signal fd", stderr);
-		close(sockfd);
-		freeap(&ap);
-		freesap(&sap);
-		exit(EXIT_FAILURE);
-	}
-	/* delete this, it's not needed in the forked off child */
-	sigdelset(&mask, SIGCHLD);
-
 	struct pollfd pollfds[2];
 	/* Setting up stuff for Polling */
 	pollfds[0].fd = sockfd;    /* incoming new connections */
@@ -186,7 +192,7 @@ int main (int argc, char * argv[]){
 	pollfds[1].events = POLLIN;
 	pollfds[1].revents = 0;
 	
-	/* Main Client Loop */
+	/* Main Server Loop */
 	while (1){ 
 		int pollret = poll(pollfds, 2, -1);
 
@@ -203,6 +209,7 @@ int main (int argc, char * argv[]){
 			ap.comport = sizeof(ap.comip);
 			ap.comfd = accept(sockfd, (struct sockaddr *) &(ap.comip), (socklen_t *)&(ap.comport));
 			switch ((forkret = fork())){
+				/* BUGBUG error handling? */
 				case -1:
 					close(ap.comfd);
 					fputs("error forking off a new client connection", stderr);
@@ -210,7 +217,9 @@ int main (int argc, char * argv[]){
 				case 0: /* I'm in the child */
 					close(sockfd);
 					close(ap.sigfd);
-					if ( (ap.sigfd = getSigfd(&mask)) <= 0 ){
+					/* fetch old mask, cf. initap!*/
+					if (sigprocmask(0, NULL, &mask) || 
+							(ap.sigfd = getSigfd(&mask)) <= 0 ){
 						fputs("error getting a new signal fd for the fork\n", stderr);
 						_exit(EXIT_FAILURE);
 					} else {
@@ -237,7 +246,7 @@ int main (int argc, char * argv[]){
 					break;
 				case SIGCHLD:
 					logmsg(ap.semid, ap.logfd, LOGLEVEL_VERBOSE, 
-							"Child %d quit with status %d", fdsi.ssi_pid, fdsi.ssi_status);
+							"Child %d quit with status %d\n", fdsi.ssi_pid, fdsi.ssi_status);
 					break;
 				default:
 					logmsg(ap.semid, ap.logfd, LOGLEVEL_WARN,

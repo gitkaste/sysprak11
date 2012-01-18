@@ -18,6 +18,7 @@
 #include "logger.h"
 #include "util.h"
 #include "protocol.h"
+#include "stdin_protocol.h"
 #include "client_protocol.h"
 #include "consoler.h"
 
@@ -105,23 +106,25 @@ void print_usage(char * prog){
 
 int processCode(int code, struct actionParameters *ap, 
 		union additionalActionParameters *aap){
+	int ret;
 	switch (code){
-		case REP_OK: 
+		case REP_OK:
 			return consolemsg(ap->semid, aap->cap->outfd, "OK");
-		case REP_TEXT: 
-			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf, 
-					ap->comline.buflen);
-		case REP_COMMAND: 
-			return processCommand(ap, aap);
-		case REP_WARN: 
-			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf, 
-					ap->comline.buflen);
-		case REP_FATAL: 
-			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf, 
-					ap->comline.buflen);
+		case REP_TEXT:
+			return consolemsg(ap->semid, aap->cap->outfd, "%s\n", ap->comline.buf);
+		case REP_COMMAND:
+			initializeClientProtocol(ap);
+			ret = processCommand(ap, aap);
+			initializeStdinProtocol(ap);
+			return ret;
+		case REP_WARN:
+			return consolemsg(ap->semid, aap->cap->outfd, "%s\n", ap->comline.buf);
+		case REP_FATAL:
+			return consolemsg(ap->semid, aap->cap->outfd, "%s\n", ap->comline.buf);
 			return -1;
 		default:
-			fprintf(stderr,"Unknown class of Code found in protocol");
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "FATAL: "
+			"Unknown class of Code found in protocol.\n");
 			return -1;
 	}
 }
@@ -131,11 +134,11 @@ int processServerReply(struct actionParameters *ap,
 	int gtfsret, pcret;
 
 	switch (readToBuf(ap->comfd, &(ap->combuf))){
-		case -2:
+		case -1:
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
 					"FATAL (processServerReply): read error.\n");
 			return -1;
-		case -1:
+		case -2:
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, 
 					"WARNING (processServerReply): EINTR/EAGAIN.\n");
 			return 1;
@@ -151,7 +154,7 @@ int processServerReply(struct actionParameters *ap,
 		/* Split into tokens */
 		switch (getTokenFromBuffer( &ap->comline, &ap->comword, " ", "\t", NULL )) {
 		case -1:
-			logmsg( ap->semid, ap->logfd, LOGLEVEL_FATAL, 
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
 				"FATAL: getTokenFromBuffer() failed in processServerReply.\n" );
 			return -1;
 		case 0:	
@@ -190,11 +193,11 @@ int main (int argc, char * argv[]){
 	uint16_t passport;
 	int opt, passsock;
 #define EXIT_NO (EXIT_FAILURE * 2+3)
-	int pSRret, shellReturn=EXIT_NO;
+	int pSRret, SRret, shellReturn=EXIT_NO;
 	pid_t uploadpid;
 	socklen_t socklen = sizeof(struct sockaddr_in);
 	struct sockaddr_in peer_addr;
-
+  struct signalfd_siginfo fdsi;
 	server_ip.s_addr = 0;
 
 	/*  Option Processing */
@@ -242,7 +245,7 @@ int main (int argc, char * argv[]){
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
-	initializeClientProtocol(&ap);
+	initializeStdinProtocol(&ap);
 
 	if (initcap(&cap, error, &conf) == -1){
 		fputs(error, stderr);
@@ -270,23 +273,22 @@ int main (int argc, char * argv[]){
 
 	/* inform the server of our passive port */
 	if (-1 == writef( ap.comfd, "PORT %d\n", passport)){
-		perror("Coulnd't send my port to server");
+		perror("Couldn't send my port to server");
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}	
 
 	/* send our file list */
-	if (-1 == writef( ap.comfd, "FILELIST\n" )){
+/*	if (-1 == writef( ap.comfd, "FILELIST\n" )){
 		perror("Coulnd't send my filelist to server");
 		shellReturn = EXIT_FAILURE;
 		goto error;
-	}	
+	}	*/
   consolemsg(ap.semid, aap.cap->outfd, "successfully connected to server");
-	fflush(stdout);
 		/* Main Client Loop */
 	createBuf(&msg,4096);
 
-	struct pollfd pollfds[3];
+  struct pollfd pollfds[3];
 	/* Setting up stuff for Polling */
 	pollfds[0].fd = ap.comfd; /* communication with server */
 	pollfds[0].events = POLLIN;
@@ -297,10 +299,11 @@ int main (int argc, char * argv[]){
 	pollfds[2].fd = passsock; /* communication with other client */
 	pollfds[2].events = POLLIN;
 	pollfds[2].revents = 0;
+	pollfds[3].fd = ap.sigfd; /* signal handling */
+	pollfds[3].events = POLLIN;
+	pollfds[3].revents = 0;
 
-	fprintf(stderr,"%d\n",processServerReply(&ap,&aap));
-
-	while (0){ 
+	while (1) { 
 		/* should i poll infinitely or a discrete time? */
 		if (	poll(pollfds, 2, -1) <= 0) {
 			if ( errno == EINTR ) continue; /* Signals */
@@ -310,13 +313,12 @@ int main (int argc, char * argv[]){
 			break;
 		}
 
-		if(pollfds[0].revents & POLLIN) {    /* Server greets us */
+		if(pollfds[0].revents & POLLIN) { /* Server greets us */
+			fprintf(stderr, "server greets us\n");
 		 	switch (pSRret = processServerReply(&ap,&aap)){
-				case -3:
 				case -1:
 					shellReturn = EXIT_FAILURE;
 					break;
-				case -2:
 				case 0: 
 					shellReturn = EXIT_SUCCESS;
 					break;
@@ -327,16 +329,11 @@ int main (int argc, char * argv[]){
 			}
 			break;
 		} else if(pollfds[1].revents & POLLIN) { /* User commands us */
-				fprintf(stderr, "user talking here:%s", ap.combuf.buf); 
 				pSRret = processIncomingData(&ap,&aap);
-				fprintf(stderr, "%d\n", pSRret);
-				fflush(stderr);
 				switch (pSRret){
-				case -3:
 				case -1:
 					shellReturn = EXIT_FAILURE;
 					break;
-				case -2:
 				case 0: 
 					shellReturn = EXIT_SUCCESS;
 					break;
@@ -363,8 +360,30 @@ int main (int argc, char * argv[]){
 				close( uploadfd );
 			}
 			break;
+		} else if(pollfds[3].revents & POLLIN) { /* incoming signal */
+			fputs("incoming signal\n", stderr);
+			SRret = read(ap.sigfd, &fdsi, sizeof(struct signalfd_siginfo));
+			if (SRret != sizeof(struct signalfd_siginfo)){
+				fprintf(stderr, "signalfd returned something broken");
+				shellReturn = EXIT_FAILURE;
+			}
+			switch(fdsi.ssi_signo){
+				case SIGINT:
+				case SIGQUIT:
+					fprintf(stderr,"Yeah i found %s",(fdsi.ssi_signo==SIGINT) ?"SIGINT": "SIGQUIT");
+					shellReturn = EXIT_SUCCESS;
+					break;
+				case SIGCHLD:
+					logmsg(ap.semid, ap.logfd, LOGLEVEL_VERBOSE, 
+							"Child %d quit with status %d\n", fdsi.ssi_pid, fdsi.ssi_status);
+					break;
+				default:
+					logmsg(ap.semid, ap.logfd, LOGLEVEL_WARN,
+							"Encountered unknown signal on sigfd %d", fdsi.ssi_signo);
+			}
 		} else if (pollfds[0].revents & POLLHUP) {
 			/*  server closed connection? */
+			fprintf(stderr, "server closed on us\n");
 			shellReturn = EXIT_SUCCESS;
 			break;
 		} else if (pollfds[1].revents & POLLHUP) {

@@ -59,16 +59,15 @@ int processIncomingData(struct actionParameters *ap,
 		return 0;
 	}
 	
-	fprintf(stderr,"read1: %s\n", ap->combuf.buf);
 	/* tokenize all lines received and process them */
-	while((gtfsret = getTokenFromStreamBuffer(&ap->combuf,
+	while ((gtfsret = getTokenFromStreamBuffer(&ap->combuf,
 			&ap->comline, "\r\n", "\n", (char *)NULL)) > 0) {
-		fprintf(stderr,"read: %s", ap->comline.buf);
-		if((pcret = processCommand(ap, aap)) <= 0) return pcret;
+		fprintf(stderr,"found %s\n",ap->combuf.buf);
+		if ((pcret = processCommand(ap, aap)) <= 0) return pcret;
 		/* NOTE: Remaining content in comline will be overwritten
 		 * by getTokenFrom*(). */
 	}
-	if(gtfsret < 0) { /* token buffer too small */
+	if (gtfsret < 0) { /* token buffer too small */
 		return gtfsret;
 	}
 	
@@ -79,7 +78,7 @@ int processIncomingData(struct actionParameters *ap,
  * ap->comfd. It tries to find the first "word" in the line, feeds it to
  * validateToken and run the action returned by validateToken.
  * Return Value:
- *    2: if no "wordh was found inside the line (means line was empty)
+ *    2: if no "word was found inside the line (means line was empty)
  *       this is positive, because we just want to ignore it.
  *    otherwise: return value of the action called
  *               (see note on return values of actions below)
@@ -87,25 +86,29 @@ int processIncomingData(struct actionParameters *ap,
 int processCommand(struct actionParameters *ap,
 		    union additionalActionParameters *aap) {
 	int gtfbret;
+	action f;
 	logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE,
 		"COMRECV: '%.*s'\n", ap->comline.buflen, ap->comline.buf);
 	/* get the first word of the line */
 	gtfbret = getTokenFromBuffer(&ap->comline,
 					&ap->comword, " ", "\t", (char *)NULL);
-	if(gtfbret < 0) {
+	if (gtfbret < 0) {
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "FATAL: "
 			"getTokenFromBuffer() failed in processCommand.\n");
 		return gtfbret;
 	} else if (gtfbret == 0) return 2; /* command was empty */
 	/* find (validate) and run the action and return its return value */
-	return (*validateToken(&ap->comword, ap->prot)) (ap, aap);
+	f = validateToken(&ap->comword, ap->prot);
+	return (*f) (ap, aap);
 }
 
 action validateToken(struct buffer *token, struct protocol *prot) {
 	int i;
 	for(i = 0; i < prot->actionCount; i++) {
-		if(strcasecmp(prot->actions[i].actionName, (char *) token->buf) == 0)
+		if(strcasecmp(prot->actions[i].actionName, (char *) token->buf) == 0){
+			fprintf(stderr, "%s it is\n", token->buf);
 			return prot->actions[i].actionPtr;
+		}
 	}
 	return prot->defaultAction;
 }
@@ -115,6 +118,9 @@ action validateToken(struct buffer *token, struct protocol *prot) {
 int initap(struct actionParameters *ap, char emsg[256], struct config *conf, int semcount){
 	int logfds[2];
 	int logfilefd;
+	sigset_t mask;
+
+	ap->usedres = 0;
 	/***** Setup BUFFERS *****/
 	strncpy(emsg, "Couldn't create buffers, out of mem", 256);
 	if (createBuf(&(ap->combuf),4096) == -1 )
@@ -138,8 +144,19 @@ int initap(struct actionParameters *ap, char emsg[256], struct config *conf, int
 		ap->usedres |= APRES_SEMID;
 
 	ap->comfd = 0;
-	ap->sigfd = 0;
 	ap->conf = conf;
+
+	/******* Setup Signal Handling *******/
+	sigemptyset(&mask);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGQUIT);
+  sigaddset(&mask, SIGCHLD);
+  if ( (ap->sigfd = getSigfd(&mask)) < 0 ){
+		sperror("error getting a signal fd", emsg, 256);
+		goto error;
+	}
+	/* delete this, it's not needed in the forked off child */
+	sigdelset(&mask, SIGCHLD);
 
 	/***** Setup Logging  *****/
 	logfilefd = open ( conf->logfile, O_APPEND|O_CREAT|O_RDWR|O_NONBLOCK,
@@ -202,9 +219,15 @@ error:
 
 void freeap(struct actionParameters *ap){
 	if (ap->usedres & APRES_COMBUF)  freeBuf(&(ap->combuf));
+	ap->usedres &= ~APRES_COMBUF;
 	if (ap->usedres & APRES_COMWORD) freeBuf(&(ap->comword));
+	ap->usedres &= ~APRES_COMWORD;
 	if (ap->usedres & APRES_COMLINE) freeBuf(&(ap->comline));
+	ap->usedres &= ~APRES_COMLINE;
 	if (ap->usedres & APRES_SEMID)   semClose(ap->semid);
+	ap->usedres &= ~APRES_SEMID;
 	if (ap->usedres & APRES_LOGFD)   close(ap->logfd);
+	ap->usedres &= ~APRES_LOGFD;
 	if (ap->usedres & APRES_SIGFD)   close(ap->sigfd);
+	ap->usedres &= ~APRES_SIGFD;
 }

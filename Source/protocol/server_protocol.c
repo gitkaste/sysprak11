@@ -41,12 +41,13 @@
 
 struct protocol server_protocol = {
 	&unknownCommandAction,
-	5,
+	6,
 	{
 		{"FILELIST", "send my filelist to the Server.\n", &filelistAction},
 		{"STATUS", "STATUS returns Server-Status.\n", &statusAction},
 		{"QUIT", "QUIT closes the connection cleanly (probably).\n", &quitAction},
 		{"SEARCH", "SEARCH file to crawl the filelist).\n", &searchAction},
+		{"PORT", "set passive Port of the client.\n", &portAction},
 		{"HELP", "HELP prints this help.\n", &helpAction}
 	}
 };
@@ -62,6 +63,7 @@ int unknownCommandAction(struct actionParameters *ap,
 	msg = stringBuilder("Command \"%s\" not understood.\n",
 		ap->comword.buf);
 	reply(ap->comfd, ap->logfd, ap->semid, REP_WARN, msg);
+	fprintf(stderr, "fuck unknown command");
 	free(msg);
 	return 1;
 }
@@ -90,7 +92,7 @@ int searchAction(struct actionParameters *ap,
 	pid_t pid;
 	int sockfd = createPassiveSocket(&port); ;
 	if (!sockfd) return -1;
-	switch( pid = fork()){
+	switch (pid = fork()) {
 		case -1:
 			close(sockfd);
 			perror("(searchAction) Problem forking");
@@ -102,7 +104,6 @@ int searchAction(struct actionParameters *ap,
 			close(sockfd);
 			return 1;
 	}
-
 }
 
 int helpAction(struct actionParameters *ap,
@@ -117,24 +118,36 @@ int helpAction(struct actionParameters *ap,
 	return 1;
 }
 
+// buggy as fuck
 int filelistAction(struct actionParameters *ap,
 	union additionalActionParameters *aap){
 	uint16_t port = 0;
 	pid_t pid;
+	fprintf(stderr,"creating a passive socket");
 	int sockfd = createPassiveSocket(&port); ;
-	socklen_t socklen;
+	//socklen_t addrlen;
 	struct sockaddr_in addr;
+	char buf[16];
 	if (!sockfd) return -1;
+	fprintf(stderr,"created a passive socket\n");
+	fflush(stderr);
 	switch( pid = fork()){
 		case -1:
 			close(sockfd);
 			perror("(filelistAction) Problem forking");
 			return -1;
 		case 0:
-			socklen = sizeof(struct sockaddr_in);
-			if (getpeername(sockfd, (struct sockaddr *)&addr, &socklen)) return -2;
+			fprintf(stderr,"kiddi\n");
+	//		addrlen = sizeof(struct sockaddr_in);
+			//if (getpeername (sockfd, (struct sockaddr *)&addr, &addrlen) ||
+			//		addrlen != sizeof(struct sockaddr_in)) return -2;
+			fprintf(stderr,"kiddi\n");
 			ap->comip = addr.sin_addr;
 			ap->comport = addr.sin_port;
+			if (inet_ntop(AF_INET, &ap->comip, buf, sizeof(buf)))
+				fprintf(stderr, "connecting to %s:%d\n", buf,ntohs(ap->comport));
+			fprintf(stderr,"writing to socket\n");
+			fflush(stderr);
 			if (writef(sockfd, "%d SENDLIST SOCKET %d", REP_COMMAND, port) < 0) return -2;
 			return  (recvFileList(sockfd, ap, aap->sap) == 1) ? -2 : -3;
 		default:
@@ -146,5 +159,6 @@ int filelistAction(struct actionParameters *ap,
 int portAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
 	ap->comport = mystrtol( (char *) ap->comline.buf);
+	fprintf(stderr,"Port %d\n", ap->comport);
 	return (errno) ? -1 : 1;
 }
