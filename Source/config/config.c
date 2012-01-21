@@ -1,13 +1,13 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <arpa/inet.h>
+#include <arpa/inet.h> /* ntop, pton */
 #include <sys/types.h>
-#include <sys/stat.h>
+#include <sys/stat.h> /* stat */
 #include <fcntl.h>
 #include <errno.h>
-#include <netdb.h>
-#include <sys/socket.h>
+#include <sys/socket.h> /* getaddrinfo */
+#include <netdb.h>   /* getaddrinfo */
 #include <unistd.h>
 #include "tokenizer.h"
 #include "config.h"
@@ -50,17 +50,20 @@ void confDefaults(struct config *conf){
 
 int parseIP(char * ip, struct addrinfo *a, char * port, int ipversion){
 	struct addrinfo hints;
+	int s;
 	memset(&hints, 0, sizeof hints); // make sure the struct is empty
 	switch(ipversion){
 		case 0:
 			hints.ai_family = AF_UNSPEC;     // don't care if it's IPv4 or IPv6
+			break;
 		case 4:
 			hints.ai_family = AF_INET;     
+			break;
 		case 6:
 			hints.ai_family = AF_INET6;    
 	}
 	hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
-	return (getaddrinfo(ip, port, &hints, &a)) ? -1 : 1; 
+	return (s = getaddrinfo(ip, port, &hints, &a)) ? s : 0; 
 }
 
 /* fills the conf with the values from the conf file */
@@ -74,7 +77,7 @@ int parseConfig (int conffd, struct config *conf){
 	char bc_broadcaststr[1024];
 	char * commentstart;
 	char portstr[12];
-	int forceIpVersion, res, retval = 1;
+	int forceIpVersion, res, retval = 1, s;
 	createBuf(&line, 1024);
 	createBuf(&buf_tmp, 1024);
 	createBuf(&key, 256);
@@ -172,7 +175,7 @@ int parseConfig (int conffd, struct config *conf){
 			} else if (!strncmp((char *)key.buf, "workdir", key.buflen)){
 				strncpy(conf->workdir, (char *)value.buf, FILENAME_MAX);
 				if (!isDirWritable(conf->workdir)){
-					fprintf(stderr,"(config parser) bc_interval isn't sensible\n");
+					fprintf(stderr,"(config parser) workdir isn't writable or doesn't exist\n");
 					retval = -1;
 				}
 			/*** scheduler***/
@@ -202,14 +205,14 @@ int parseConfig (int conffd, struct config *conf){
 	}
 	if (retval != -1){
 		snprintf(portstr, 11, "%d", conf->bc_port);
-		if (parseIP((char *)value.buf, &conf->ipa, NULL, conf->forceIpVersion) == -1){
-			fprintf(stderr,"(config parser) ip isn't a valid ip address\n");
+		if ( (s = parseIP((char *)value.buf, &conf->ipa, NULL, conf->forceIpVersion)) ){
+			fprintf(stderr,"(config parser) ip isn't a valid ip address%s\n", gai_strerror(s));
 			retval = -1;
 		} else if (parseIP((char *)value.buf, &conf->bc_ipa, portstr, conf->forceIpVersion) == -1){
-			fprintf(stderr,"(config parser) bc_ip isn't a valid ip address\n");
+			fprintf(stderr,"(config parser) bc_ip isn't a valid ip address%s\n", gai_strerror(s));
 			retval = -1;
 		} else if (parseIP((char *)value.buf, &conf->bc_broadcasta, NULL, conf->forceIpVersion) == -1){
-			fprintf(stderr,"(config parser) bc_ip isn't a valid ip address\n");
+			fprintf(stderr,"(config parser) bc_broadcast isn't a valid ip address%s\n", gai_strerror(s));
 			retval = -1;
 		}
 		/* if (inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->ip)) <= 0){
@@ -253,9 +256,18 @@ int initConf(char * conffilename, struct config *conf, char error[256]){
 
 void writeConfig (int fd, struct config *conf){
 	char ip[127];
+	int port = 0;
 	/* There is no way to enter a flawed ip in our system */
 	inet_ntop(AF_INET, &conf->ip, ip, 126);
 	writef(fd, "Using config:\n\tip:\t\t%s\n\tport:\t\t%d\n",ip, conf->port);
+	if (conf->ipa.ai_family == AF_INET) {
+			struct sockaddr_in a = *((struct socckaddr_in *)conf->ipa.ai_addr);
+			port = a.sin_port;
+	} else if (conf->ipa.ai_family == AF_INET6) {
+			struct sockaddr_in6 a = *((struct socckaddr_in6 *)conf->ipa.ai_addr);
+			port = a.sin6_port;
+	}
+	writef(fd, "\tipa:\t\t%s\n\tporta:\t\t%d\n",conf->ipa.ai_canonname, conf->ipa);
 	writef(fd, "\tlogfile:\t%s\n\tloglevel:\t%d\n", conf->logfile, conf->loglevel);
 	writef(fd, "\tlogMask:\t%d\n", conf->logMask); 
 	writef(fd, "\tnetworkDumpLogFile:%s\n", conf->networkDumpLogFile);

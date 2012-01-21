@@ -1,6 +1,9 @@
 #include <inttypes.h> /* uintX_t */
 #include <stdio.h> /* FILENAME_MAX */
 #include <netinet/in.h> /* struct in_addr */
+#include <sys/socket.h> 
+#include <sys/types.h> 
+#include <netdb.h> /* struct addrinfo */
 #ifndef _CONFIG_H
 #define _CONFIG_H
 #define SCHEDULER_RR 1

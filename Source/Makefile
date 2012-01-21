@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -pedantic -Werror -std=gnu99
 
-DIRS ?= $(shell find . -mindepth 1 -type d)
+DIRS ?= $(shell find . -mindepth 1 -maxdepth 1 -type d)
 MAKEFILES = $(foreach dir, $(DIRS), $(dir)/Makefile)
 include $(MAKEFILES)
 
