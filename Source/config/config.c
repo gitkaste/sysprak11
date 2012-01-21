@@ -5,9 +5,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <unistd.h>
 #include "tokenizer.h"
 #include "config.h"
+#include "util.h"
 
 /* This is a gnu extension but it's safer 
 #define Min(X, Y) do { 
@@ -50,12 +52,11 @@ int parseConfig (int conffd, struct config *conf){
 	struct buffer line;
 	struct buffer buf_tmp;
 	char * commentstart;
-	int forceIpVersion;
+	int forceIpVersion, res, retval = 1;
 	createBuf(&line,1024);
 	createBuf(&buf_tmp,1024);
 	createBuf(&key,256);
 	createBuf(&value,256);
-	int res;
 	while ( ( res = getTokenFromStream( conffd, &buf_tmp, &line, "\n", "\r\n",NULL ) ) ){
 		/* crap error */
 		if (res ==  -1) return -1;
@@ -67,38 +68,57 @@ int parseConfig (int conffd, struct config *conf){
 			/* break out inner loop if we don't have an argument to key */
 			if (getTokenFromBuffer(&line, &value, "\t", " ", NULL) != 1) break;
 
-			/* BUGBUG Theoretically errno needs to be checked after every strtol */
 			/* BUGBUG ERROR checking! */
 			/*** IP ***/
-			if (!strncmp((char *)key.buf, "ip", key.buflen)){
-				inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->ip));
-
+			if (!strncmp((char *)key.buf, "ip", key.buflen)) {
+				if (inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->ip)) <= 0){
+					fprintf(stderr,"(config parser) ip isn't a valid ip address\n");
+					retval = -1;
+					break;
+				}
 			/*** Port ***/
-			}else if (!strncmp((char *)key.buf, "port", key.buflen)){
-				conf->port = (uint16_t) strtol((char *)value.buf, NULL, 10);
-
+			} else if (!strncmp((char *)key.buf, "port", key.buflen)) {
+				conf->port = (uint16_t) my_strtol((char *)value.buf);
+				if (errno || conf->port > 645536){
+					fprintf(stderr,"(config parser) port isn't a valid port number or trailing chars\n");
+					retval = -1;
+					break;
+				}
 			/*** Loglevel ***/
-			}else if (!strncmp((char *)key.buf, "loglevel", key.buflen)){
-				conf->loglevel = (uint8_t) strtol((char *)value.buf, NULL, 10);
-
+			} else if (!strncmp((char *)key.buf, "loglevel", key.buflen)) {
+				conf->loglevel = (uint8_t) my_strtol((char *)value.buf);
+				if (errno || !isPowerOfTwo(conf->loglevel)){
+					fprintf(stderr,"(config parser) loglevel isn't a valid level or trailing chars\n");
+					retval = -1;
+					break;
+				}	
 			/*** shm_size ***/
-			}else if (!strncmp((char *)key.buf, "shm_size", key.buflen)){
-				conf->shm_size = (uint32_t) strtol((char *)value.buf, NULL, 10);
-
+			} else if (!strncmp((char *)key.buf, "shm_size", key.buflen)){
+				conf->shm_size = (uint32_t) my_strtol((char *)value.buf);
+				if (errno || conf->shm_size > getShmMax() || conf->shm_size < getShmMin()){
+					fprintf(stderr,"(config parser) shm_size isn't valid or trailing chars\n");
+					retval = -1;
+					break;
+				}
 			/*** logfile ***/
-			}else if (!strncmp((char *)key.buf, "logfile", key.buflen)){
+			} else if (!strncmp((char *)key.buf, "logfile", key.buflen)){
 				strncpy(conf->logfile, (char *)value.buf, FILENAME_MAX);
-
 			/*** share ***/
-			}else if (!strncmp((char *)key.buf, "share", key.buflen)){
+			} else if (!strncmp((char *)key.buf, "share", key.buflen)){
 				strncpy(conf->share, (char *)value.buf, FILENAME_MAX);
-
+				if (!isDir(conf->share)){
+					fprintf(stderr,"(config parser) share isn't a valid dir (maybe unreadable?)\n");
+					retval = -1;
+				}
 			/*** logMask ***/
-			}else if (!strncmp((char *)key.buf, "logMask", key.buflen)){
-				conf->logMask = (uint16_t) strtol((char *)value.buf, NULL, 10);
-
+			} else if (!strncmp((char *)key.buf, "logMask", key.buflen)){
+				conf->logMask = (uint16_t) my_strtol((char *)value.buf);
+				if (errno) {
+					fprintf(stderr,"(config parser) shm_size isn't valid or trailing chars\n");
+					retval = -1;
+				}
 			/*** forceIpVersion ***/
-			}else if (!strncmp((char *)key.buf, "forceIpVersion", key.buflen)){
+			} else if (!strncmp((char *)key.buf, "forceIpVersion", key.buflen)){
 				forceIpVersion = (uint8_t) strtol((char *)value.buf, NULL, 10);
 				switch(forceIpVersion){
 					case 0:
@@ -109,54 +129,70 @@ int parseConfig (int conffd, struct config *conf){
 					default:
 						fprintf(stderr,"(config parser) forceIpVersion can only be 0,4 or 6\n");
 				}
-
 			/*** bcip ***/
-			}else if (!strncmp((char *)key.buf, "bc_ip", key.buflen)){
-				inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->bc_ip));
-
+			} else if (!strncmp((char *)key.buf, "bc_ip", key.buflen)){
+				if (inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->bc_ip)) <= 0){
+					fprintf(stderr,"(config parser) bc_ip isn't a valid ip address\n");
+					retval = -1;
+				}
 			/*** bc_port ***/
-			}else if (!strncmp((char *)key.buf, "bc_port", key.buflen)){
-				conf->bc_port = (uint16_t) strtol((char *)value.buf, NULL, 10);
-
+			} else if (!strncmp((char *)key.buf, "bc_port", key.buflen)){
+				conf->bc_port = (uint16_t) my_strtol((char *)value.buf);
+				if (errno || conf->bc_port > 65536) {
+					fprintf(stderr,"(config parser) bc_port isn't valid\n");
+					retval = -1;
+				}
 			/*** bc_broadcast ***/
-			}else if (!strncmp((char *)key.buf, "bc_broadcast", key.buflen)){
-				conf->bc_broadcast = (uint16_t) strtol((char *)value.buf, NULL, 10);
-
+			} else if (!strncmp((char *)key.buf, "bc_broadcast", key.buflen)){
+				if (inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->ip)) <= 0){
+					fprintf(stderr,"(config parser) bc_broadcast isn't a valid ip address\n");
+					retval = -1;
+				}
 			/*** bc_interval ***/
-			}else if (!strncmp((char *)key.buf, "bc_interval", key.buflen)){
-				conf->bc_interval = (uint16_t) strtol((char *)value.buf, NULL, 10);
-
+			} else if (!strncmp((char *)key.buf, "bc_interval", key.buflen)){
+				conf->bc_interval = (uint16_t) my_strtol((char *)value.buf);
+				if (errno || conf->bc_interval <= 0) {
+					fprintf(stderr,"(config parser) bc_interval isn't sensible\n");
+					retval = -1;
+				}
 			/*** workdir ***/
-			}else if (!strncmp((char *)key.buf, "workdir", key.buflen)){
+			} else if (!strncmp((char *)key.buf, "workdir", key.buflen)){
 				strncpy(conf->workdir, (char *)value.buf, FILENAME_MAX);
-
+				if (!isDirWritable(conf->workdir)){
+					fprintf(stderr,"(config parser) bc_interval isn't sensible\n");
+					retval = -1;
+				}
 			/*** scheduler***/
-			}else if (!strncmp((char *)key.buf, "scheduler", key.buflen)){
+			} else if (!strncmp((char *)key.buf, "scheduler", key.buflen)){
 				if (strcasecmp((char *)value.buf, "rr"))
 					conf->scheduler = SCHEDULER_RR;
 				else if (strcasecmp((char *)value.buf, "pri"))
 					conf->scheduler =SCHEDULER_PRI;
-				else
+				else {
 					fprintf(stderr,"(config parser) unknown scheduler: %s\n", value.buf);
-
+					retval = -1;
+				}
 			/*** schedTimeSlice ***/
-			}else if (!strncmp((char *)key.buf, "schedTimeSlice", key.buflen)){
-				conf->schedTimeSlice = (uint16_t) strtol((char *)value.buf, NULL, 10);
-
+			} else if (!strncmp((char *)key.buf, "schedTimeSlice", key.buflen)){
+				conf->schedTimeSlice = (uint16_t) my_strtol((char *)value.buf);
+				if (errno || conf->bc_interval <= 0) {
+					fprintf(stderr,"(config parser) schedTimeSlice isn't sensible\n");
+					retval = -1;
+				}
 			/*** networkDumpLogFile ***/
-			}else if (!strncmp((char *)key.buf, "networkDumpLogFile", key.buflen)){
+			} else if (!strncmp((char *)key.buf, "networkDumpLogFile", key.buflen)){
 				strncpy(conf->networkDumpLogFile, (char *)value.buf, FILENAME_MAX);
-
-			}else{
+			} else{
 				fprintf(stderr,"(config parser) unknown token: %s\n", key.buf);
 			} 
 		}
 	}
+
 	freeBuf(&line);
 	freeBuf(&buf_tmp);
 	freeBuf(&key);
 	freeBuf(&value);
-	return 1;
+	return retval;
 }
 
 /***** Setup CONFIG *****/

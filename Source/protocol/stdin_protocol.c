@@ -83,7 +83,7 @@ int stdin_helpAction(struct actionParameters *ap,
 int stdin_downloadAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap) {
 	/* i bail on anything but 'download <nr> :whitespace:', too pedantic? */
-	int nr = mystrtol( (char *) ap->comline.buf);
+	int nr = my_strtol( (char *) ap->comline.buf);
 	if (errno) return -1;
 	return nr;
 //	advFileCopy(nr);

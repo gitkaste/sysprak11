@@ -7,6 +7,8 @@
 #define LOGLEVEL_VERBOSE 4
 #define LOGLEVEL_DEBUG 8
 
+/* GLOBAL! Variable so you can set a loglevel over which you don't log */
+extern int g_loglevel;
 
 /* logger
  * this is the forked process for logging. It recieves data on pipefd, 

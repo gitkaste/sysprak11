@@ -6,6 +6,8 @@
 #include "logger.h"
 #include "util.h"
 
+int g_loglevel = 1;
+
 int logger(int pipefd, int filefd){
 	ssize_t s, t;
 	struct buffer buf;
@@ -41,6 +43,8 @@ int logmsg(int semid, int pipefd, int loglevel, const char *fmt, ...){
 	struct buffer buf;
 
 	va_list argp;
+	/* BUGBUG: maybe this needs to be (loglevel & g_loglevel) cf. logger.h */
+	if (loglevel > g_loglevel) return 1;
 	u = time(NULL);
 	if ( (t = localtime(&u)) == 0 ) return -1;
 	if ( !(strftime(s, 255, "%c", t)) ) return -1;

@@ -8,12 +8,6 @@
 #include "directoryParser.h"
 #include "util.h"
 
-char * path_join(const char * basedir, const char * subdir){
-	char * fulldirname = malloc(strlen(basedir) + strlen(subdir) +2);
-	if (!fulldirname) return NULL;
-	return strcat(strcat(strcpy(fulldirname,basedir),"/"), subdir);
-}
-
 int parseDirToFD(int fd, const char * basedir, const char * subdir){
 
 	/* construct full dir name */

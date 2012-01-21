@@ -77,6 +77,9 @@ int sendSignalToChildren(struct array *cpa, unsigned char type, int sig);
 /* functions for creating and deleting shared mem */
 int shmCreate(int id);
 int shmDelete(int size);
+/* find the system max and min for the gross combined shared mem */
+int getShmMin();
+int getShmMax();
 #define IPC_KEY 39471
 
 
@@ -107,6 +110,9 @@ int setFdNonblock(int fd);
 /* Own def */
 #define ETRAILING 177
 int sperror(char * pref, char * buf, int buflen);
-int mystrtol(char * buf);
-
+int my_strtol(char * buf);
+int isDir(const char *dirname);
+int isDirWritable(const char * dirname);
+int isPowerOfTwo (unsigned int x);
+char *path_join(const char * basedir, const char * subdir);
 #endif
