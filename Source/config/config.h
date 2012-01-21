@@ -9,6 +9,7 @@
  * configuration structure for _both_, server and client (merged). */
 struct config {
     struct in_addr   ip;
+    struct addrinfo  ipa;
     uint16_t         port;
     uint8_t          loglevel;
 		uint16_t         logMask;
@@ -19,8 +20,10 @@ struct config {
     uint32_t         shm_size;
 		uint8_t          forceIpVersion;
 		struct in_addr   bc_ip;
+		struct addrinfo  bc_ipa;
 		uint16_t         bc_port;
-		uint16_t         bc_broadcast;
+		struct in_addr   bc_broadcast;
+		struct addrinfo  bc_broadcasta;
 		uint16_t         bc_interval;
 		char             scheduler;
 		uint16_t         schedTimeSlice;

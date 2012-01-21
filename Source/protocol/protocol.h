@@ -63,6 +63,7 @@ struct actionParameters { /* elwms */
 	struct protocol *prot;
 	/* ip of communication partner ('peer') */
 	struct in_addr comip;
+	struct sockaddr comips;
 	uint16_t comport;
 };
 
