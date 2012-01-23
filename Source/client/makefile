@@ -1,4 +1,4 @@
-DIRS = $(shell find .. -mindepth 1 -type d)
+DIRS = $(shell find .. -mindepth 1 -maxdepth 2 -type d)
 
 .PRECIOUS: client
 client:

@@ -25,11 +25,19 @@
 #define MIN(x,y) ( (x) < (y) ? (x) : (y) )
 #define LOG(x) do {puts(x); fflush(stdout);} while(0)
 
+void printIP(struct addrinfo *a){
+	char ip[255];
+	puts("starting printIP");
+	if (!inet_ntop(AF_INET, a->ai_addr, ip, 255))
+		perror("error converting IP");
+	printf("%s\n", ip);
+}
+
 /* supposed to init the defaults */
 void confDefaults(struct config *conf){
-
 	/* This shall not fail */
 	inet_pton(AF_INET, "0.0.0.0", (void *)&(conf->ip));
+	parseIP("0.0.0.0", &(conf->ipa), NULL, 4);
 	conf->port = 4444;
 	strcpy(conf->logfile, "tmp/sysprak/server.log");
 	conf->loglevel = 1;
@@ -42,15 +50,17 @@ void confDefaults(struct config *conf){
 	strcpy(conf->networkDumpLogFile, "tmp/sysprak/serverDump.log");
 	/* BUGBUG read from eth0 or something this is crap */
 	inet_pton(AF_INET, "127.0.0.1", (void *)&(conf->bc_ip));
+	parseIP("127.0.0.1", &(conf->bc_ipa), NULL, 4);
 	conf->bc_port = 4445;
 	conf->scheduler = SCHEDULER_RR;
+	parseIP("127.0.0.1", &(conf->bc_broadcasta), NULL, 4);
+	printIP(&conf->bc_broadcasta);
 	conf->bc_interval = 10;
 	conf->schedTimeSlice = 3;
 }
 
-int parseIP(char * ip, struct addrinfo *a, char * port, int ipversion){
+int parseIP(char * ip, struct addrinfo *a, char * port, int ipversion) {
 	struct addrinfo hints;
-	int s;
 	memset(&hints, 0, sizeof hints); // make sure the struct is empty
 	switch(ipversion){
 		case 0:
@@ -62,8 +72,11 @@ int parseIP(char * ip, struct addrinfo *a, char * port, int ipversion){
 		case 6:
 			hints.ai_family = AF_INET6;    
 	}
+	printf("%s - %d\n", ip, ipversion);
+	hints.ai_flags = AI_CANONNAME; /* Y U NO WORK?!? */
+	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
-	return (s = getaddrinfo(ip, port, &hints, &a)) ? s : 0; 
+	return getaddrinfo(ip, port, &hints, &a);
 }
 
 /* fills the conf with the values from the conf file */
@@ -203,31 +216,20 @@ int parseConfig (int conffd, struct config *conf){
 			} 
 		}
 	}
+
+	/*** Lookup IPs for ip bc_ip and bc_broadcast ***/
 	if (retval != -1){
 		snprintf(portstr, 11, "%d", conf->bc_port);
-		if ( (s = parseIP((char *)value.buf, &conf->ipa, NULL, conf->forceIpVersion)) ){
+		if ( (s = parseIP(ipstr, &conf->ipa, NULL, conf->forceIpVersion)) ){
 			fprintf(stderr,"(config parser) ip isn't a valid ip address%s\n", gai_strerror(s));
 			retval = -1;
-		} else if (parseIP((char *)value.buf, &conf->bc_ipa, portstr, conf->forceIpVersion) == -1){
+		} else if (parseIP(bc_ipstr, &conf->bc_ipa, portstr, conf->forceIpVersion) == -1){
 			fprintf(stderr,"(config parser) bc_ip isn't a valid ip address%s\n", gai_strerror(s));
 			retval = -1;
-		} else if (parseIP((char *)value.buf, &conf->bc_broadcasta, NULL, conf->forceIpVersion) == -1){
+		} else if (parseIP(bc_broadcaststr, &conf->bc_broadcasta, NULL, conf->forceIpVersion) == -1){
 			fprintf(stderr,"(config parser) bc_broadcast isn't a valid ip address%s\n", gai_strerror(s));
 			retval = -1;
 		}
-		/* if (inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->ip)) <= 0){
-			retval = -1;
-			break;
-		}
-		if (inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->bc_ip)) <= 0){
-			fprintf(stderr,"(config parser) bc_ip isn't a valid ip address\n");
-			retval = -1;
-		}
-		if (inet_pton(AF_INET, (char *)value.buf,(void *) &(conf->ip)) <= 0){
-			fprintf(stderr,"(config parser) bc_broadcast isn't a valid ip address\n");
-			retval = -1;
-		}
-	*/
 	}
 	freeBuf(&line);
 	freeBuf(&buf_tmp);
@@ -256,24 +258,23 @@ int initConf(char * conffilename, struct config *conf, char error[256]){
 
 void writeConfig (int fd, struct config *conf){
 	char ip[127];
-	int port = 0;
 	/* There is no way to enter a flawed ip in our system */
 	inet_ntop(AF_INET, &conf->ip, ip, 126);
-	writef(fd, "Using config:\n\tip:\t\t%s\n\tport:\t\t%d\n",ip, conf->port);
-	if (conf->ipa.ai_family == AF_INET) {
-			struct sockaddr_in a = *((struct socckaddr_in *)conf->ipa.ai_addr);
-			port = a.sin_port;
-	} else if (conf->ipa.ai_family == AF_INET6) {
-			struct sockaddr_in6 a = *((struct socckaddr_in6 *)conf->ipa.ai_addr);
-			port = a.sin6_port;
-	}
-	writef(fd, "\tipa:\t\t%s\n\tporta:\t\t%d\n",conf->ipa.ai_canonname, conf->ipa);
-	writef(fd, "\tlogfile:\t%s\n\tloglevel:\t%d\n", conf->logfile, conf->loglevel);
-	writef(fd, "\tlogMask:\t%d\n", conf->logMask); 
-	writef(fd, "\tnetworkDumpLogFile:%s\n", conf->networkDumpLogFile);
-	writef(fd, "\tshare:\t\t%s\n\tshm_size:\t%d\n", conf->share, conf->shm_size);
-	writef(fd, "\tworkdir:\t%s\n", conf->workdir);
-	writef(fd, "\tforceIpVersion:\t%d\n", conf->forceIpVersion);
+	writef(fd, "Using config:\n\tip:\t\t\t%s\n\tport:\t\t\t%d\n",ip, conf->port);
+	if (!inet_ntop(conf->ipa.ai_family, conf->ipa.ai_addr, ip, 127))
+		perror("inet_ntop");
+	printf("%d\n", conf->ipa.ai_family);
+	/*if ( (s = getnameinfo(conf->ipa.ai_addr, conf->ipa.ai_addrlen, hostname, 255, NULL, 0, 0)) )
+		fprintf(stderr, "error in getnameinfo: %s\n", gai_strerror(s));*/
+	writef(fd, "\tipa:\t\t\t%s\n",ip);
+	writef(fd, "\tlogfile:\t\t%s\n\tloglevel:\t\t%d\n", conf->logfile, conf->loglevel);
+	writef(fd, "\tlogMask:\t\t%d\n", conf->logMask); 
+	writef(fd, "\tnetworkDumpLogFile:\t%s\n", conf->networkDumpLogFile);
+	writef(fd, "\tshare:\t\t\t%s\n\tshm_size:\t\t%d\n", conf->share, conf->shm_size);
+	writef(fd, "\tworkdir:\t\t%s\n", conf->workdir);
+	writef(fd, "\tforceIpVersion:\t\t%d\n", conf->forceIpVersion);
 	inet_ntop(AF_INET, &conf->bc_ip, ip, 126);
-	writef(fd, "\tbc_ip:\t\t%s\n\tbc_port:\t%d\n", ip, conf->bc_port);
+	writef(fd, "\tbc_ip:\t\t\t%s\n\tbc_port:\t\t%d\n", ip, conf->bc_port);
+	inet_ntop(AF_INET, &conf->bc_broadcast, ip, 126);
+	writef(fd, "\tbc_broadcast:\t\t%s\n", ip);
 }

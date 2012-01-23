@@ -36,4 +36,5 @@ void confDefaults(struct config *conf);
 int parseConfig (int conffd, struct config *conf);
 void writeConfig (int fd, struct config *conf);
 int initConf(char * conffilename, struct config *conf, char error[256]);
+int parseIP(char * ip, struct addrinfo *a, char * port, int ipversion);
 #endif 

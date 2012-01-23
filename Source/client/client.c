@@ -405,10 +405,9 @@ error:
 	close(passport);
 	freeap(&ap);
 	freecap(&cap); /* closes all open file handles with the consoler */
-	if ( waitpid(cap.conpid, NULL, 0) < 0 ||  waitpid(ap.logpid, NULL, 0) < 0){
+	if ( waitpid(cap.conpid, NULL, 0) < 0 ||  waitpid(ap.logpid, NULL, 0) < 0) {
 		puts("Did Burpy: Unclean Shutdown - Sorry\n");
 		exit(shellReturn);
 	}
-
 	exit(shellReturn);
 }
