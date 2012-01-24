@@ -14,7 +14,9 @@
 #include "tokenizer.h"
 #include "logger.h"
 
-int createPassiveSocket(uint16_t *port){
+int g_forceipversion = 4;
+
+int createPassiveSocket4(uint16_t *port){
 	int sockfd;
 	if ( (sockfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0)) < -1 ){
 		perror("couldn't attach to socket, damn");
@@ -42,6 +44,40 @@ int createPassiveSocket(uint16_t *port){
 	return sockfd;
 }
 
+int createPassiveSocket6(uint16_t *port){
+	int sockfd;
+	//if ( (sockfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0)) < -1 ){
+	if ( (sockfd = socket(AF_INET6, SOCK_STREAM, 0)) < -1 ){
+		perror("couldn't attach to socket, damn");
+		return -1;
+	}
+	struct sockaddr_in6 servaddr6;
+
+	servaddr6.sin6_addr = in6addr_any; // use my IPv6 address
+	servaddr6.sin6_port = htons(*port);
+	servaddr6.sin6_family = AF_INET6;
+	if (bind(sockfd, (struct sockaddr *) &servaddr6, sizeof(servaddr6)) == -1){
+		perror("Couldn't bind to socket");
+		return -1;
+	}
+	if (listen(sockfd, 50) == -1){
+		perror("Failure to listen on socket");
+		return -1;
+	}
+	socklen_t addrlen = sizeof(servaddr6);
+	if (getsockname(sockfd, (struct sockaddr *) &servaddr6, &addrlen) == -1){
+		perror("Couldn't find my own port number");
+		return -1;
+	}
+	*port = ntohs(servaddr6.sin6_port);
+	return sockfd;
+}
+int createPassiveSocket(uint16_t *port){
+	if (g_forceipversion == 4) 
+		return createPassiveSocket4(port);
+	else
+		return createPassiveSocket6(port);
+}
 
 int connectSocket(struct sockaddr *ip, uint16_t port){
 	int sockfd;

@@ -1,5 +1,9 @@
 #include <inttypes.h>
 #include <protocol.h>
+
+/* GLOBAL! Variable so you can set a loglevel over which you don't log */
+extern int g_forceipversion;
+
 int createPassiveSocket(uint16_t *port);
 int connectSocket(struct sockaddr *ip, uint16_t port);
 int sendResult(int fd, struct actionParameters *ap, struct serverActionParameters *sap);
