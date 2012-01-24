@@ -61,12 +61,11 @@ int parseIP(char * ip, struct addrinfo *a, char * port, int ipversion) {
 		case 6:
 			hints.ai_family = AF_INET6;    
 	}
-	printf("%s - %d\n", ip, ipversion);
 	hints.ai_flags = AI_CANONNAME; /* Y U NO WORK?!? */
 	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
 	int res = getaddrinfo(ip, port, &hints, &tmpa);
-	*a = *tmpa; // Fuck the lack of this line cost me hours
+	*a = *tmpa; // Fuck, the lack of this line cost me hours!
 	return res;
 }
 
@@ -74,8 +73,7 @@ int parseIP(char * ip, struct addrinfo *a, char * port, int ipversion) {
 void confDefaults(struct config *conf){
 	/* This shall not fail */
 	inet_pton(AF_INET, "0.0.0.0", (void *)&(conf->ip));
-	printf("PARSEIP%d\n", parseIP("0.0.0.0", &(conf->ipa), NULL, 4));
-	printf("confDef %p\n", (void *)&conf->ipa);
+	parseIP("0.0.0.0", &(conf->ipa), NULL, 4);
 	conf->port = 4444;
 	strcpy(conf->logfile, "tmp/sysprak/server.log");
 	conf->loglevel = 1;
