@@ -25,19 +25,57 @@
 #define MIN(x,y) ( (x) < (y) ? (x) : (y) )
 #define LOG(x) do {puts(x); fflush(stdout);} while(0)
 
+//Convert a struct sockaddr address to a string, IPv4 and IPv6:
+char *get_ip_str(const struct sockaddr *sa, char *s, size_t maxlen) {
+    switch(sa->sa_family) {
+        case AF_INET:
+            inet_ntop(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr),
+                    s, maxlen);
+            break;
+        case AF_INET6:
+            inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)sa)->sin6_addr),
+                    s, maxlen);
+            break;
+        default:
+            strncpy(s, "Unknown AF", maxlen);
+            return NULL;
+    }
+    return s;
+}
+
 void printIP(struct addrinfo *a){
 	char ip[255];
-	puts("starting printIP");
-	if (!inet_ntop(AF_INET, a->ai_addr, ip, 255))
-		perror("error converting IP");
-	printf("%s\n", ip);
+	printf("%s", get_ip_str(a->ai_addr, ip, 255));
+}
+
+int parseIP(char * ip, struct addrinfo *a, char * port, int ipversion) {
+	struct addrinfo hints, *tmpa;
+	memset(&hints, 0, sizeof hints); // make sure the struct is empty
+	switch(ipversion){
+		case 0:
+			hints.ai_family = AF_UNSPEC;     // don't care if it's IPv4 or IPv6
+			break;
+		case 4:
+			hints.ai_family = AF_INET;     // great, why can't AF_INET == 4?
+			break;
+		case 6:
+			hints.ai_family = AF_INET6;    
+	}
+	printf("%s - %d\n", ip, ipversion);
+	hints.ai_flags = AI_CANONNAME; /* Y U NO WORK?!? */
+	hints.ai_protocol = IPPROTO_TCP;
+	hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
+	int res = getaddrinfo(ip, port, &hints, &tmpa);
+	*a = *tmpa; // Fuck the lack of this line cost me hours
+	return res;
 }
 
 /* supposed to init the defaults */
 void confDefaults(struct config *conf){
 	/* This shall not fail */
 	inet_pton(AF_INET, "0.0.0.0", (void *)&(conf->ip));
-	parseIP("0.0.0.0", &(conf->ipa), NULL, 4);
+	printf("PARSEIP%d\n", parseIP("0.0.0.0", &(conf->ipa), NULL, 4));
+	printf("confDef %p\n", (void *)&conf->ipa);
 	conf->port = 4444;
 	strcpy(conf->logfile, "tmp/sysprak/server.log");
 	conf->loglevel = 1;
@@ -54,29 +92,8 @@ void confDefaults(struct config *conf){
 	conf->bc_port = 4445;
 	conf->scheduler = SCHEDULER_RR;
 	parseIP("127.0.0.1", &(conf->bc_broadcasta), NULL, 4);
-	printIP(&conf->bc_broadcasta);
 	conf->bc_interval = 10;
 	conf->schedTimeSlice = 3;
-}
-
-int parseIP(char * ip, struct addrinfo *a, char * port, int ipversion) {
-	struct addrinfo hints;
-	memset(&hints, 0, sizeof hints); // make sure the struct is empty
-	switch(ipversion){
-		case 0:
-			hints.ai_family = AF_UNSPEC;     // don't care if it's IPv4 or IPv6
-			break;
-		case 4:
-			hints.ai_family = AF_INET;     
-			break;
-		case 6:
-			hints.ai_family = AF_INET6;    
-	}
-	printf("%s - %d\n", ip, ipversion);
-	hints.ai_flags = AI_CANONNAME; /* Y U NO WORK?!? */
-	hints.ai_protocol = IPPROTO_TCP;
-	hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
-	return getaddrinfo(ip, port, &hints, &a);
 }
 
 /* fills the conf with the values from the conf file */
@@ -261,20 +278,22 @@ void writeConfig (int fd, struct config *conf){
 	/* There is no way to enter a flawed ip in our system */
 	inet_ntop(AF_INET, &conf->ip, ip, 126);
 	writef(fd, "Using config:\n\tip:\t\t\t%s\n\tport:\t\t\t%d\n",ip, conf->port);
-	if (!inet_ntop(conf->ipa.ai_family, conf->ipa.ai_addr, ip, 127))
-		perror("inet_ntop");
-	printf("%d\n", conf->ipa.ai_family);
-	/*if ( (s = getnameinfo(conf->ipa.ai_addr, conf->ipa.ai_addrlen, hostname, 255, NULL, 0, 0)) )
-		fprintf(stderr, "error in getnameinfo: %s\n", gai_strerror(s));*/
-	writef(fd, "\tipa:\t\t\t%s\n",ip);
+	if (!get_ip_str(conf->ipa.ai_addr, ip, 127))
+		writef(fd, "problem converting ip conf->ip");
+	else
+		writef(fd, "\tipa:\t\t\t%s\n",ip);
 	writef(fd, "\tlogfile:\t\t%s\n\tloglevel:\t\t%d\n", conf->logfile, conf->loglevel);
 	writef(fd, "\tlogMask:\t\t%d\n", conf->logMask); 
 	writef(fd, "\tnetworkDumpLogFile:\t%s\n", conf->networkDumpLogFile);
 	writef(fd, "\tshare:\t\t\t%s\n\tshm_size:\t\t%d\n", conf->share, conf->shm_size);
 	writef(fd, "\tworkdir:\t\t%s\n", conf->workdir);
 	writef(fd, "\tforceIpVersion:\t\t%d\n", conf->forceIpVersion);
-	inet_ntop(AF_INET, &conf->bc_ip, ip, 126);
-	writef(fd, "\tbc_ip:\t\t\t%s\n\tbc_port:\t\t%d\n", ip, conf->bc_port);
-	inet_ntop(AF_INET, &conf->bc_broadcast, ip, 126);
-	writef(fd, "\tbc_broadcast:\t\t%s\n", ip);
+	if (!get_ip_str(conf->bc_ipa.ai_addr, ip, 127))
+		writef(fd, "problem converting ip conf->ip");
+	else
+		writef(fd, "\tbc_ip:\t\t\t%s\n\tbc_port:\t\t%d\n", ip, conf->bc_port);
+	if (!get_ip_str(conf->bc_broadcasta.ai_addr, ip, 127))
+		writef(fd, "problem converting ip conf->ip");
+	else
+		writef(fd, "\tbc_broadcast:\t\t%s\n", ip);
 }

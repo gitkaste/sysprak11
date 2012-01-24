@@ -12,7 +12,7 @@ union semun {
 
 int semCreate(int num){
 	//int semid = semget(IPC_PRIVATE,num, IPC_CREAT|0666);
-	int semid = semget(IPC_PRIVATE, num, 0666);
+	int semid = semget(IPC_PRIVATE, num, 0644);
 	if (semid == -1) {
 		perror("Creating semaphors");
 		return -1;

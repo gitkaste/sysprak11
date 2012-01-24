@@ -13,3 +13,9 @@ Source/config/test
 Source/util/test
 Source/protocol/test
 Source/*/test
+Source/client/err
+Source/config/tmp
+blatt5/sysprakSources/
+blatt6/sysprakSources/
+blatt7/sysprakSources/
+blatt8/sysprakSources_blatt08/

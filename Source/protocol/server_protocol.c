@@ -158,7 +158,7 @@ int filelistAction(struct actionParameters *ap,
 
 int portAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
-	ap->comport = mystrtol( (char *) ap->comline.buf);
+	ap->comport = my_strtol( (char *) ap->comline.buf);
 	fprintf(stderr,"Port %d\n", ap->comport);
 	return (errno) ? -1 : 1;
 }
