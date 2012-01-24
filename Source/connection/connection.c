@@ -43,20 +43,21 @@ int createPassiveSocket(uint16_t *port){
 }
 
 
-int connectSocket(struct in_addr *ip, uint16_t port){
+int connectSocket(struct sockaddr *ip, uint16_t port){
 	int sockfd;
 
-	if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < -1 ){
+	if ( (sockfd = socket(ip->sa_family, SOCK_STREAM, 0)) < -1 ){
 		perror("couldn't attach to socket, damn");
 		return -1;
 	}
 
-	struct sockaddr_in peeraddr;
-	peeraddr.sin_addr.s_addr = ip->s_addr;
-	peeraddr.sin_port = htons(port);
-	peeraddr.sin_family = AF_INET;
+	if (ip->sa_family == AF_INET)
+		((struct sockaddr_in *) ip)->sin_port = htons(port);
+	else
+		((struct sockaddr_in6 *) ip)->sin6_port = htons(port);
 
-	if ( connect(sockfd, (struct sockaddr *) &peeraddr, sizeof(peeraddr)) == -1){
+	if ( connect(sockfd, ip, (ip->sa_family == AF_INET)? sizeof (struct sockaddr_in):
+				sizeof(struct sockaddr_in6)) == -1){
 		fprintf(stderr, "(connectSocket) errno: %d\n", errno);
 		perror("Failure to connect to peer");
 		return -1;

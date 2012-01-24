@@ -68,8 +68,7 @@ int comfork(struct actionParameters *ap,
 		char buf[16];
 		memset (&ap->comip, 0, addrlen);
 		if (!getpeername (ap->comfd, (struct sockaddr *)&ap->comip, &addrlen) || addrlen != sizeof(struct sockaddr_in))
-			if (inet_ntop(AF_INET, &ap->comip, buf, sizeof(buf)))
-				fprintf(stderr, "Connection accepted from %s:%d\n", buf, ntohs(ap->comport));
+			printIP(&ap->comip);
 		/* BUGBUG: Hier muss gepolled werden. */
 
 		/* Setting up stuff for Polling */

@@ -11,6 +11,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include "config.h"
 #include "connection.h"
@@ -181,7 +183,7 @@ int processServerReply(struct actionParameters *ap,
 int main (int argc, char * argv[]){
 	struct config conf;
 	char * conffilename="client.conf";
-  struct in_addr server_ip;
+	char serveripstr[1024] = "";
 	int server_port = 0;
 	const int numsems = 3;
 	struct actionParameters ap;
@@ -191,14 +193,13 @@ int main (int argc, char * argv[]){
 	struct buffer msg;
 	char error[256];
 	uint16_t passport;
-	int opt, passsock;
+	int opt, passsock, s;
 #define EXIT_NO (EXIT_FAILURE * 2+3)
 	int pSRret, SRret, shellReturn=EXIT_NO;
 	pid_t uploadpid;
 	socklen_t socklen = sizeof(struct sockaddr_in);
 	struct sockaddr_in peer_addr;
   struct signalfd_siginfo fdsi;
-	server_ip.s_addr = 0;
 
 	/*  Option Processing */
   while ((opt = getopt(argc, argv, "i:p:c:")) != -1) {
@@ -215,10 +216,7 @@ int main (int argc, char * argv[]){
 				}
         break;
 			case 'i':
-				if (!inet_aton(optarg, &server_ip)){
-				fprintf(stderr, "%s is not a valid ipv4\n",optarg);
-			  exit(EXIT_FAILURE);
-			}
+				strncpy(serveripstr, optarg, 1024);
 				break;
       default: /*  '?' */
 				print_usage(argv[0]);
@@ -237,8 +235,12 @@ int main (int argc, char * argv[]){
 	/* Possibly override with values from command line */
 	if (server_port)
 		conf.port = server_port;
-	if (server_ip.s_addr)
-		conf.ip.s_addr = server_ip.s_addr;
+	if ( *serveripstr != '\0' ){
+		if ( ( s = parseIP(serveripstr, &conf.ip, NULL, conf.forceIpVersion) ) ){
+			fprintf(stderr,"(main) serverip isn't a valid ip address%s\n", gai_strerror(s));
+			goto error;
+		} 
+	}
 
 	if (initap(&ap, error, &conf, numsems) == -1) {
 		fputs(error, stderr);
@@ -254,7 +256,7 @@ int main (int argc, char * argv[]){
 	}
 
 	/* connecting to server. */
-	ap.comip = conf.ip;
+	ap.comip = *conf.ip;
 	ap.comport = conf.port;
 	if ( (ap.comfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
 		fputs("error connecting to server", stderr);

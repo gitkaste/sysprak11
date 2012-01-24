@@ -3,7 +3,6 @@
 #include <netinet/in.h> /* struct in_addr */
 #include <sys/socket.h> 
 #include <sys/types.h> 
-#include <netdb.h> /* struct addrinfo */
 #ifndef _CONFIG_H
 #define _CONFIG_H
 #define SCHEDULER_RR 1
@@ -11,8 +10,7 @@
 /* struct config
  * configuration structure for _both_, server and client (merged). */
 struct config {
-    struct in_addr   ip;
-    struct addrinfo  ipa;
+    struct sockaddr  ip;
     uint16_t         port;
     uint8_t          loglevel;
 		uint16_t         logMask;
@@ -22,11 +20,9 @@ struct config {
     char             workdir[FILENAME_MAX];
     uint32_t         shm_size;
 		uint8_t          forceIpVersion;
-		struct in_addr   bc_ip;
-		struct addrinfo  bc_ipa;
+		struct sockaddr  bc_ip;
 		uint16_t         bc_port;
-		struct in_addr   bc_broadcast;
-		struct addrinfo  bc_broadcasta;
+		struct sockaddr  bc_broadcast;
 		uint16_t         bc_interval;
 		char             scheduler;
 		uint16_t         schedTimeSlice;
@@ -36,5 +32,7 @@ void confDefaults(struct config *conf);
 int parseConfig (int conffd, struct config *conf);
 void writeConfig (int fd, struct config *conf);
 int initConf(char * conffilename, struct config *conf, char error[256]);
-int parseIP(char * ip, struct addrinfo *a, char * port, int ipversion);
+int parseIP(char * ip, struct sockaddr *a, char * port, int ipversion);
+void printIP(struct sockaddr *a);
+char *getipstr(const struct sockaddr *sa, char *s, size_t maxlen);
 #endif 

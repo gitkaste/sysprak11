@@ -142,8 +142,8 @@ int filelistAction(struct actionParameters *ap,
 			//if (getpeername (sockfd, (struct sockaddr *)&addr, &addrlen) ||
 			//		addrlen != sizeof(struct sockaddr_in)) return -2;
 			fprintf(stderr,"kiddi\n");
-			ap->comip = addr.sin_addr;
-			ap->comport = addr.sin_port;
+			// BUGBUG ap->comip = addr.sin_addr;
+			// BUGBUG ap->comport = addr.sin_port;
 			if (inet_ntop(AF_INET, &ap->comip, buf, sizeof(buf)))
 				fprintf(stderr, "connecting to %s:%d\n", buf,ntohs(ap->comport));
 			fprintf(stderr,"writing to socket\n");
