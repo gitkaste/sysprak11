@@ -9,7 +9,7 @@
 
 int sperror(char * pref, char * buf, int buflen) {
 		strncpy(buf, pref, buflen);
-		return strerror_r(errno, buf + strlen(pref), buflen - strlen(pref));
+		return (strerror_r(errno, buf + strlen(pref), buflen - strlen(pref))) ? -1: 1;
 }
 
 int my_strtol(char * buf) {

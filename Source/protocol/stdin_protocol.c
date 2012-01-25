@@ -27,7 +27,8 @@ int initializeStdinProtocol(struct actionParameters *ap) {
 
 int passOnAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
-	return ( writef(aap->cap->serverfd, "%s %s", ap->comword, ap->comline) == -1 )? -2: -3; }
+	return (writef(aap->cap->serverfd,"%s %s",ap->comword,ap->comline)==-1)?-1:1;
+}
 
 int stdin_showAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap) {
@@ -50,9 +51,8 @@ int stdin_resultsAction(struct actionParameters *ap,
 		} else if (!(f->size / 1024 * 1024 * 1024 * 1024)){
 			size = stringBuilder("%dGB" , f->size);
 		}
-		inet_ntop(AF_INET, &f->ip, ip, 126);
-		if ( writef(aap->cap->outfd, "%s: %s, %s %d\n",f->filename,size,ip,f->port)
-			 == -1 ){
+		if ( writef(aap->cap->outfd, "%s: %s, %s %d\n", f->filename, size,
+					putIP(f->ip), getPort(f->ip)) == -1 ){
 			free(size);
 			return -1;
 		}

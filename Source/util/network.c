@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-//Convert a struct sockaddr address to a string, IPv4 and IPv6:
+//Convert a struct sockaddr address to a string, IPv4 and IPv6, returns s:
 char *getipstr(const struct sockaddr *sa, char *s, size_t maxlen) {
     switch(sa->sa_family) {
         case AF_INET:
@@ -22,6 +22,11 @@ char *getipstr(const struct sockaddr *sa, char *s, size_t maxlen) {
             return NULL;
     }
     return s;
+}
+
+char * putIP (struct sockaddr *a){
+	static char ip[255];
+	return getipstr(a, ip, 255);
 }
 
 void printIP(struct sockaddr *a){
