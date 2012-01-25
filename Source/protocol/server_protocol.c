@@ -126,7 +126,7 @@ int filelistAction(struct actionParameters *ap,
 	fprintf(stderr,"creating a passive socket");
 	int sockfd = createPassiveSocket(&port); ;
 	//socklen_t addrlen;
-	struct sockaddr_in addr;
+	//struct sockaddr_in addr;
 	char buf[16];
 	if (!sockfd) return -1;
 	fprintf(stderr,"created a passive socket\n");

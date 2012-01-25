@@ -7,11 +7,13 @@
 #define _CONFIG_H
 #define SCHEDULER_RR 1
 #define SCHEDULER_PRI 2
+
 /* struct config
  * configuration structure for _both_, server and client (merged). */
 struct config {
+	/* unified for both v4 and v6, port is still used extra though for convenience */
     struct sockaddr  ip;
-    uint16_t         port;
+		uint16_t         port;
     uint8_t          loglevel;
 		uint16_t         logMask;
     char             logfile[FILENAME_MAX];
@@ -32,7 +34,4 @@ void confDefaults(struct config *conf);
 int parseConfig (int conffd, struct config *conf);
 void writeConfig (int fd, struct config *conf);
 int initConf(char * conffilename, struct config *conf, char error[256]);
-int parseIP(char * ip, struct sockaddr *a, char * port, int ipversion);
-void printIP(struct sockaddr *a);
-char *getipstr(const struct sockaddr *sa, char *s, size_t maxlen);
 #endif 

@@ -185,6 +185,7 @@ int main (int argc, char * argv[]){
 	char * conffilename="client.conf";
 	char serveripstr[1024] = "";
 	int server_port = 0;
+	char portstr[8];
 	const int numsems = 3;
 	struct actionParameters ap;
 	struct clientActionParameters cap;
@@ -208,9 +209,8 @@ int main (int argc, char * argv[]){
 				conffilename = strdup(optarg);
         break;
       case 'p':
-				errno =0;
-				server_port = strtol(optarg,NULL,10);
-				if (errno == EINVAL || server_port <= 0 || server_port > 65536){
+				server_port = (uint16_t) my_strtol(optarg);
+				if (errno || server_port > 645536){
 					fprintf(stderr, "%s is not a valid port, use 0-65536\n",optarg);
 				  exit(EXIT_FAILURE);
 				}
@@ -233,13 +233,15 @@ int main (int argc, char * argv[]){
 		exit(EXIT_FAILURE);
 	}
 	/* Possibly override with values from command line */
-	if (server_port)
-		conf.port = server_port;
 	if ( *serveripstr != '\0' ){
-		if ( ( s = parseIP(serveripstr, &conf.ip, NULL, conf.forceIpVersion) ) ){
+		snprintf(portstr, 8, "%d", conf.port);
+		if ( ( s = parseIP(serveripstr, &conf.ip, portstr, conf.forceIpVersion) ) ){
 			fprintf(stderr,"(main) serverip isn't a valid ip address%s\n", gai_strerror(s));
 			goto error;
 		} 
+	if (server_port)
+		conf.port = server_port;
+	  setPort(&conf.ip, conf.port);
 	}
 
 	if (initap(&ap, error, &conf, numsems) == -1) {
@@ -256,7 +258,7 @@ int main (int argc, char * argv[]){
 	}
 
 	/* connecting to server. */
-	ap.comip = *conf.ip;
+	ap.comip = conf.ip;
 	ap.comport = conf.port;
 	if ( (ap.comfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
 		fputs("error connecting to server", stderr);

@@ -13,6 +13,7 @@
 #include "config.h"
 #include "util.h"
 #include "logger.h"
+#include "connection.h"
 
 /* This is a gnu extension but it's safer 
 #define Min(X, Y) do { 
@@ -24,51 +25,6 @@
 /* unsafe macro, if you need safety use a function! */
 #define MIN(x,y) ( (x) < (y) ? (x) : (y) )
 #define LOG(x) do {puts(x); fflush(stdout);} while(0)
-
-//Convert a struct sockaddr address to a string, IPv4 and IPv6:
-char *getipstr(const struct sockaddr *sa, char *s, size_t maxlen) {
-    switch(sa->sa_family) {
-        case AF_INET:
-            inet_ntop(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr),
-                    s, maxlen);
-            break;
-        case AF_INET6:
-            inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)sa)->sin6_addr),
-                    s, maxlen);
-            break;
-        default:
-            strncpy(s, "Unknown AF", maxlen);
-            return NULL;
-    }
-    return s;
-}
-
-void printIP(struct sockaddr *a){
-	char ip[255];
-	printf("%s", getipstr(a, ip, 255));
-}
-
-/*  returns 0 on success, error on failure */
-int parseIP(char * ip, struct sockaddr *a, char * port, int ipversion) {
-	struct addrinfo hints, *tmpa;
-	memset(&hints, 0, sizeof hints); // make sure the struct is empty
-	switch(ipversion){
-		case 0:
-			hints.ai_family = AF_UNSPEC;     // don't care if it's IPv4 or IPv6
-			break;
-		case 4:
-			hints.ai_family = AF_INET;     // great, why can't AF_INET == 4?
-			break;
-		case 6:
-			hints.ai_family = AF_INET6;    
-	}
-	hints.ai_flags = AI_CANONNAME; /* Y U NO WORK?!? */
-	hints.ai_protocol = IPPROTO_TCP;
-	hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
-	int res = getaddrinfo(ip, port, &hints, &tmpa);
-	*a = *(tmpa->ai_addr); // Fuck, the lack of this line cost me hours!
-	return res;
-}
 
 /* supposed to init the defaults */
 void confDefaults(struct config *conf){
@@ -177,7 +133,7 @@ int parseConfig (int conffd, struct config *conf){
 					case 0:
 					case 4:
 					case 6:
-						conf->forceIpVersion = forceIpVersion;
+							g_forceipversion = conf->forceIpVersion = forceIpVersion;
 						break;
 					default:
 						fprintf(stderr,"(config parser) forceIpVersion can only be 0,4 or 6\n");

@@ -65,7 +65,6 @@ int comfork(struct actionParameters *ap,
 		perror("Error accepting a connection");
 		return -3;
 	}else{
-		char buf[16];
 		memset (&ap->comip, 0, addrlen);
 		if (!getpeername (ap->comfd, (struct sockaddr *)&ap->comip, &addrlen) || addrlen != sizeof(struct sockaddr_in))
 			printIP(&ap->comip);

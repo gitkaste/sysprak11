@@ -106,6 +106,13 @@ struct flEntry {
 
 int setFdNonblock(int fd);
 
+/***************** NETWORK STUFF *******************/
+char *getipstr(const struct sockaddr *sa, char *s, size_t maxlen);
+void printIP(struct sockaddr *a);
+int parseIP(char * ip, struct sockaddr *a, char * port, int ipversion);
+int getPort(struct sockaddr *a);
+int setPort(struct sockaddr *a, int port);
+
 /* Own def */
 #define ETRAILING 177
 int sperror(char * pref, char * buf, int buflen);

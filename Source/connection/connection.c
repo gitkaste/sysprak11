@@ -13,6 +13,7 @@
 #include "connection.h"
 #include "tokenizer.h"
 #include "logger.h"
+#include "util.h"
 
 int g_forceipversion = 4;
 
@@ -41,21 +42,30 @@ int createPassiveSocket4(uint16_t *port){
 		return -1;
 	}
 	*port = ntohs(servaddr.sin_port);
+	fprintf(stderr, "opened passive socket on fd %d with port %d", sockfd, *port);
 	return sockfd;
 }
 
 int createPassiveSocket6(uint16_t *port){
 	int sockfd;
-	//if ( (sockfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0)) < -1 ){
-	if ( (sockfd = socket(AF_INET6, SOCK_STREAM, 0)) < -1 ){
-		perror("couldn't attach to socket, damn");
-		return -1;
+	if ( g_forceipversion == 6) {
+		if ( (sockfd = socket(AF_INET6, SOCK_STREAM|SOCK_NONBLOCK|IPV6_V6ONLY, 0)) < -1 ){
+			perror("couldn't attach to socket, damn");
+			return -1;
+		}
+	} else {
+		if ( (sockfd = socket(AF_INET6, SOCK_STREAM|SOCK_NONBLOCK, 0)) < -1 ){
+			perror("couldn't attach to socket, damn");
+			return -1;
+		}
 	}
 	struct sockaddr_in6 servaddr6;
+	memset(&servaddr6, 0, sizeof(servaddr6));
 
 	servaddr6.sin6_addr = in6addr_any; // use my IPv6 address
 	servaddr6.sin6_port = htons(*port);
 	servaddr6.sin6_family = AF_INET6;
+
 	if (bind(sockfd, (struct sockaddr *) &servaddr6, sizeof(servaddr6)) == -1){
 		perror("Couldn't bind to socket");
 		return -1;
@@ -70,8 +80,10 @@ int createPassiveSocket6(uint16_t *port){
 		return -1;
 	}
 	*port = ntohs(servaddr6.sin6_port);
+	fprintf(stderr, "opened passive v6 socket on fd %d with port %d", sockfd, *port);
 	return sockfd;
 }
+
 int createPassiveSocket(uint16_t *port){
 	if (g_forceipversion == 4) 
 		return createPassiveSocket4(port);
@@ -91,7 +103,9 @@ int connectSocket(struct sockaddr *ip, uint16_t port){
 		((struct sockaddr_in *) ip)->sin_port = htons(port);
 	else
 		((struct sockaddr_in6 *) ip)->sin6_port = htons(port);
-
+	printf("connect: sockfd %d, port %d, ip ", sockfd, getPort(ip));
+	printIP(ip);
+	puts("");
 	if ( connect(sockfd, ip, (ip->sa_family == AF_INET)? sizeof (struct sockaddr_in):
 				sizeof(struct sockaddr_in6)) == -1){
 		fprintf(stderr, "(connectSocket) errno: %d\n", errno);
@@ -110,14 +124,15 @@ int sendResult(int fd, struct actionParameters *ap,
 		struct serverActionParameters *sap){
 	unsigned long i = 0;
 	struct flEntry *fl;
+	char ip[127];
 	/* blatt7 is wrong about the comword alreay containing the search token */
 	int res = getTokenFromBuffer(&ap->comline, &ap->comword, "\n", "\r\n",NULL );
 	if (res == -1) return -3;
 
 	while (( fl = iterateArray(sap->filelist, &i))){
-		if (strcasecmp( (char *) ap->comword.buf, fl->filename)) continue;
-		if (-1 == writef(fd, "%d\t%d\t%s\t%lu", fl->ip.s_addr, fl->port, 
-				fl->filename, fl->size))
+		if ( strcasecmp( (char *) ap->comword.buf, fl->filename) ) continue;
+		if ( -1 == writef(fd, "%s\t%d\t%s\t%lu", getipstr(&fl->ip,ip,127), 
+					getPort(&fl->ip), fl->filename, fl->size))
 			return -3;
 
 	}
@@ -128,28 +143,34 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 	int counter, res;
 	struct flEntry file;
 	struct array * results2;
+	char port[7];
+	char ipstr[56];
 	/* get a line */
 	while ( ( res = getTokenFromStream( ap->comfd, &ap->combuf, &ap->comline, "\n", "\r\n",NULL ) ) ){
 		if (res ==  -1) return -3;
+
 		/* get first word -> ip */
-		res = getTokenFromBuffer( &(ap->combuf), &(ap->comword), " ", "\t",NULL );
-		if (res ==  -1) return -3;;
-		errno =0;
-		if ( (file.ip.s_addr = strtol((char *)ap->comword.buf, NULL, 10)) < 0 || errno)  return -3;
+		if (getTokenFromBuffer( &(ap->combuf), &(ap->comword), " ", "\t",NULL ) == -1)
+			return -1;
+		strncpy(ipstr, (char *)ap->combuf.buf, 56);
+
 		/* get second word -> port */
-		res = getTokenFromBuffer(&ap->combuf, &ap->comword, " ", "\t",NULL );
-		if (res ==  -1) return -3;;
-		errno =0;
-		if ( (file.port = strtol((char *)ap->comword.buf, NULL, 10)) < 0 || errno) return -3;
+		if (getTokenFromBuffer(&ap->combuf, &ap->comword, " ", "\t",NULL ) == -1)
+			return -1;
+		strncpy(port, (char *)ap->combuf.buf, 7);
+
+		if (parseIP(ipstr, &(file.ip), port, 0) == -1)
+			return -1;
+
 		/* get third word -> filename */
-		res = getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL );
-		if (res ==  -1) return -3;;
+		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL ) == -1)
+			return -1;
 		strcpy(file.filename, (char *)&ap->comline.buf);
+
 		/* get fourth word -> size */
-		res = getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL );
-		if (res ==  -1) return -3;;
-		errno =0;
-		if ( (file.size = strtol((char *)ap->comword.buf, NULL, 10)) < 0 || errno) return -3;
+		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL ) == -1)
+			return -1;
+		if ( (file.size = my_strtol((char *)ap->comword.buf)) < 0 || errno) return -3;
 
 		results2 = addArrayItem(results, &file);
 		if (results2) results = results2;
@@ -164,9 +185,14 @@ int recvFileList(int sfd, struct actionParameters *ap,
 		struct serverActionParameters *sap){
 	int res;
 	struct flEntry file;
-	file.ip = ap->comip;
-	file.port = ap->comport;
+//	char port[7];
+//	struct sockaddr a;
 	struct array *fl2; 
+
+///	snprintf( port, 7, "%d", ap->comport);
+///	if (parseIP(ap->comip, &a, port, 0) == -1)
+///		return -1;
+///
 	while ( ( res = getTokenFromStream( sfd, &ap->combuf, &ap->comline, "\n", "\r\n",NULL ) ) ){
 		if (res ==  -1) return -1;
 		strcpy(file.filename, (char *)&ap->comline.buf);
