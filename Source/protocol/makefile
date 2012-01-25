@@ -1,4 +1,4 @@
-DIRS = $(shell find .. -mindepth 1 -maxdepth 2 -type d)
+DIRS = $(shell find .. -mindepth 1 -maxdepth 1 -type d)
 include ../Makefile
 
 .PRECIOUS: test
