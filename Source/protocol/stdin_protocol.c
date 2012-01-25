@@ -40,7 +40,6 @@ int stdin_resultsAction(struct actionParameters *ap,
 	struct flEntry *f;
 	long unsigned int i;
 	char * size;
-	char ip[127];
 	while ( (f = iterateArray(aap->cap->results, &i)) ){
 		if (!(f->size / 1024)){
 			size = stringBuilder("%dB" , f->size);
@@ -52,7 +51,7 @@ int stdin_resultsAction(struct actionParameters *ap,
 			size = stringBuilder("%dGB" , f->size);
 		}
 		if ( writef(aap->cap->outfd, "%s: %s, %s %d\n", f->filename, size,
-					putIP(f->ip), getPort(f->ip)) == -1 ){
+					putIP(&f->ip), getPort(&f->ip)) == -1 ){
 			free(size);
 			return -1;
 		}
