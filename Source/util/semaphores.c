@@ -20,18 +20,7 @@ int semCreate(int num){
 	union semun semopts;
 	unsigned short int sem_array[num]; /* gotta love VLAs */
 	int i = 0;
-/*	struct semid_ds mysemds;
-	semopts.buf = &mysemds;
-	if(semctl(semid, 0, IPC_STAT, semopts) == -1) {
-          perror("semctl");
-					return -1;
-  }
-	printf("Old permissions were %o\n", semopts.buf->sem_perm.mode);
-	semopts.buf->sem_perm.mode = 0666;
-	if(semctl(semid, 0, IPC_SET, semopts) == -1) {
-          perror("semctl");
-					return -1;
-	}*/
+
 	for (i =0 ; i< num; i++){
 		sem_array[i] = 1;
 	}

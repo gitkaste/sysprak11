@@ -25,7 +25,6 @@ int logger(int pipefd, int filefd){
 			return 1;
 		default: // Means we got something decent - do nothing
 			if (s != ( t = writeBuf(filefd, &buf))) {
-				printf("%d - t %d",(int) s, (int) t);
 				if (t ==-1) perror("logger had trouble writing");
 				freeBuf(&buf);
 				return -1;

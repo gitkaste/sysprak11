@@ -18,10 +18,8 @@ int remChildProcess(struct array *cpa, pid_t pid){
 	long unsigned int i = 0;
 	while ( (c = iterateArray(cpa, &i)) ){
 		if (pid == c->pid){
-			if ( -1 == remArrayItem(cpa, i-1)){
-				fprintf(stderr,"couldn't remove child entry");
+			if ( -1 == remArrayItem(cpa, i-1))
 				return -1;
-			}
 		}
 	}
 	return 1;
@@ -33,13 +31,9 @@ int sendSignalToChildren(struct array *cpa, unsigned char type, int sig){
 	long unsigned int i = 0;
 	while ( (c = iterateArray(cpa, &i)) ){
 		if (c->type == type){
-			if ( kill (c->pid, sig) ){
-				perror("(sendSignalToChildren)");
+			if ( kill (c->pid, sig) )
 				return -1;
-			}
 		}
 	}
 	return 1;
 }
-
-
