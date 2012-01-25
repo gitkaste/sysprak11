@@ -188,7 +188,6 @@ int consoler(int infd, int outfd) {
 			gwret = getcharWrapper(&stdinbuf);
 			if (gwret == 1) { /* New Line ! */
 				writef(STDOUT_FILENO, "\r>> ");
-				fprintf(stderr, "Consoler read %s___________\n",(char *)stdinbuf.buf);
 				if(writeBuf(outfd, &stdinbuf) < 0) {
 					/* probably other side of pipe
 					 * was closed */

@@ -48,7 +48,6 @@ ssize_t writeWrapper (int fd, const void *bufv, size_t count){
 }
 
 ssize_t writeBuf (int fd, struct buffer *buf){
-	fprintf(stderr,"writeBuf sees %s", buf->buf);
 	ssize_t written = writeWrapper(fd, buf->buf, buf->buflen);
 	flushBuf(buf);
 	return written;

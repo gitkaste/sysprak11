@@ -117,11 +117,11 @@ int connectSocket(struct sockaddr *ip, uint16_t port){
 		return -1;
 	}
 
-	if (setFdNonblock(sockfd) == 1)
+//	if (setFdNonblock(sockfd) == 1)
 		return sockfd;
-	else
-		perror("(connectSocket) Couldn't set sockfd to nonBlocking");
-		return -1;
+//	else
+//		perror("(connectSocket) Couldn't set sockfd to nonBlocking");
+//		return -1;
 }
 
 int sendResult(int fd, struct actionParameters *ap, 

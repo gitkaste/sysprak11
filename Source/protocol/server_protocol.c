@@ -63,7 +63,8 @@ int unknownCommandAction(struct actionParameters *ap,
 	msg = stringBuilder("Command \"%s\" not understood.\n",
 		ap->comword.buf);
 	reply(ap->comfd, ap->logfd, ap->semid, REP_WARN, msg);
-	fprintf(stderr, "fuck unknown command");
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, 
+			"fuck unknown command \"%s\"", ap->comword.buf);
 	free(msg);
 	return 1;
 }

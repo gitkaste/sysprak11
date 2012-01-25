@@ -60,10 +60,10 @@ int processIncomingData(struct actionParameters *ap,
 		return 0;
 	}
 	
+	/* read once - poll told us there is data */
 	/* tokenize all lines received and process them */
 	while ((gtfsret = getTokenFromStreamBuffer(&ap->combuf,
 			&ap->comline, "\r\n", "\n", (char *)NULL)) > 0) {
-		fprintf(stderr, "incomingdata got: %s____\n", ap->comline.buf);
 		consolemsg(ap->semid, aap->cap->outfd, "found %s",ap->combuf.buf);
 		if ((pcret = processCommand(ap, aap)) <= 0) return pcret;
 		/* NOTE: Remaining content in comline will be overwritten
@@ -72,7 +72,6 @@ int processIncomingData(struct actionParameters *ap,
 	if (gtfsret < 0) { /* token buffer too small */
 		return gtfsret;
 	}
-	
 	return 1;
 }
 
@@ -108,7 +107,6 @@ action validateToken(struct buffer *token, struct protocol *prot) {
 	int i;
 	for(i = 0; i < prot->actionCount; i++) {
 		if(strcasecmp(prot->actions[i].actionName, (char *) token->buf) == 0){
-			fprintf(stderr, "%s it is\n", token->buf);
 			return prot->actions[i].actionPtr;
 		}
 	}

@@ -52,7 +52,7 @@ int client_resultAction(struct actionParameters *ap,
 				_exit(EXIT_FAILURE);
 			errno =0;
 			int port = strtol( (char *) ap->comword.buf, NULL, 10);
-			if ( errno || port<0|| port>65536 ) _exit(EXIT_FAILURE);
+			if ( errno || port<0 || port>65536 ) _exit(EXIT_FAILURE);
 			int sockfd = connectSocket(&ap->comip, port);
 			if (sockfd == -1) _exit(EXIT_FAILURE);
 			/*BUGBUG shouldn't we clear the results array before getting new ones?*/	

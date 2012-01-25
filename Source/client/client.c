@@ -114,16 +114,16 @@ int processCode(int code, struct actionParameters *ap,
 		case REP_OK:
 			return consolemsg(ap->semid, aap->cap->outfd, "OK");
 		case REP_TEXT:
-			return consolemsg(ap->semid, aap->cap->outfd, "%s\n", ap->comline.buf);
+			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf);
 		case REP_COMMAND:
 			initializeClientProtocol(ap);
 			ret = processCommand(ap, aap);
 			initializeStdinProtocol(ap);
 			return ret;
 		case REP_WARN:
-			return consolemsg(ap->semid, aap->cap->outfd, "%s\n", ap->comline.buf);
+			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf);
 		case REP_FATAL:
-			return consolemsg(ap->semid, aap->cap->outfd, "%s\n", ap->comline.buf);
+			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf);
 			return -1;
 		default:
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "FATAL: "
@@ -136,7 +136,7 @@ int processServerReply(struct actionParameters *ap,
 		union additionalActionParameters *aap){
 	int gtfsret, pcret;
 
-	switch (readToBuf(ap->comfd, &(ap->combuf))){
+	switch (readToBuf(aap->cap->serverfd, &(ap->combuf))){
 		case -1:
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
 					"FATAL (processServerReply): read error.\n");
@@ -165,8 +165,10 @@ int processServerReply(struct actionParameters *ap,
 		case 1:
 			errno=0;
 			/* Split into tokens */
-			int code = strtol( (char *) ap->comword.buf, NULL, 10);
+			int code = my_strtol( (char *) ap->comword.buf );
 			if ( errno || code<REP_OK || code>REP_FATAL || code % 100 ) return -1;
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, 
+				"(procssServerReply) got command '%s'\n", ap->comline.buf);
 			if ( (pcret = processCode(code, ap, aap)) <= 0 ) return pcret;
 		default:
 			logmsg( ap->semid, ap->logfd, LOGLEVEL_WARN,
@@ -197,11 +199,12 @@ int main (int argc, char * argv[]){
 	uint16_t passport;
 	int opt, passsock, s;
 #define EXIT_NO (EXIT_FAILURE * 2+3)
-	int pSRret, SRret, shellReturn=EXIT_NO;
+	int pSRret, SRret, shellReturn=EXIT_NO, gtfsRet, pcret, rtbRet;
 	pid_t uploadpid;
 	socklen_t socklen = sizeof(struct sockaddr_in);
 	struct sockaddr_in peer_addr;
   struct signalfd_siginfo fdsi;
+  struct pollfd pollfds[3];
 
 	/*  Option Processing */
   while ((opt = getopt(argc, argv, "i:p:c:")) != -1) {
@@ -254,16 +257,14 @@ int main (int argc, char * argv[]){
 	initializeStdinProtocol(&ap);
 
 	if (initcap(&cap, error, &conf) == -1){
-		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "%s", error);
+		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "%s", error);
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
 
 	/* connecting to server. */
-	ap.comip = conf.ip;
-	ap.comport = conf.port;
-	if ( (ap.comfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
-		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "error connecting to server\n");
+	if ( (cap.serverfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
+		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "error connecting to server\n");
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
@@ -272,7 +273,7 @@ int main (int argc, char * argv[]){
 	/* create a passive port to accept client connections. */
 	passport =  0;
 	if ( ( passsock = createPassiveSocket(&passport)) == -1){
-		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
+		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, 
 				"Error setting up network connection\n");
 		shellReturn = EXIT_FAILURE;
 		goto error;
@@ -280,7 +281,7 @@ int main (int argc, char * argv[]){
 
 	/* inform the server of our passive port */
 	if (-1 == writef( ap.comfd, "PORT %d\n", passport)){
-		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Couldn't send my port to server\n");
+		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "Couldn't send my port to server\n");
 		perror("");
 		shellReturn = EXIT_FAILURE;
 		goto error;
@@ -292,13 +293,13 @@ int main (int argc, char * argv[]){
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}	*/
-  consolemsg(ap.semid, aap.cap->outfd, "successfully connected to server");
+  //consolemsg(ap.semid, aap.cap->outfd, "successfully connected to server\n");
+	logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "successfully started up\n");
 		/* Main Client Loop */
 	createBuf(&msg,4096);
 
-  struct pollfd pollfds[3];
 	/* Setting up stuff for Polling */
-	pollfds[0].fd = ap.comfd; /* communication with server */
+	pollfds[0].fd = cap.serverfd; /* communication with server */
 	pollfds[0].events = POLLIN;
 	pollfds[0].revents = 0;
 	pollfds[1].fd = cap.infd; /* communication with user */
@@ -337,20 +338,25 @@ int main (int argc, char * argv[]){
 			}
 			break;
 		} else if(pollfds[1].revents & POLLIN) { /* User commands us */
-				pSRret = processIncomingData(&ap,&aap);
-				switch (pSRret){
-				case -1:
+			if ( (rtbRet = readToBuf(cap.infd, &ap.combuf)) == -1 ){
+					logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL,
+						"FATAL (main loop, user incoming): read()-error from fd.\n");
 					shellReturn = EXIT_FAILURE;
 					break;
-				case 0: 
+			} else if(rtbRet == 0){
 					shellReturn = EXIT_SUCCESS;
+					logmsg(ap.semid, ap.logfd, LOGLEVEL_VERBOSE,
+						"FATAL (main loop, user incoming): fd closed from other side");
 					break;
-				default: 
-					if (pSRret ==1) continue;
-					fprintf(stderr,"WTF did processServerReply just return:%d?\n",pSRret);
-					shellReturn = EXIT_FAILURE;
 			}
-			break;
+			while ((gtfsRet = getTokenFromStreamBuffer(&ap.combuf,
+				&ap.comline, "\r\n", "\n", (char *)NULL)) > 0) {
+				consolemsg(ap.semid, aap.cap->outfd, "found %s",ap.comline.buf);
+				fflush(stdout);
+				if ((pcret = processCommand(&ap, &aap)) <= 0)
+					consolemsg(ap.semid, aap.cap->outfd, "command %s not understood", 
+							ap.comline.buf);
+			}
 		} else if(pollfds[2].revents & POLLIN) { /* Client connection incoming */
 			int uploadfd = accept(passsock, (struct sockaddr *) &peer_addr, &socklen);
 			if (!uploadfd) return -1;
@@ -379,7 +385,7 @@ int main (int argc, char * argv[]){
 				case SIGINT:
 				case SIGQUIT:
 					fprintf(stderr,"Yeah i found %s",(fdsi.ssi_signo==SIGINT) ?
-"SIGINT": "SIGQUIT");
+						"SIGINT": "SIGQUIT");
 					shellReturn = EXIT_SUCCESS;
 					break;
 				case SIGCHLD:

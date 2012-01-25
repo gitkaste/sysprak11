@@ -60,10 +60,9 @@ int stdin_resultsAction(struct actionParameters *ap,
 	return 1;
 }
 
-/* This should start a cascade killing the whole client */
 int stdin_exitAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
-	return close(ap->comfd);
+	return 0;
 }
 
 int stdin_helpAction(struct actionParameters *ap, 
