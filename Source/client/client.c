@@ -35,7 +35,8 @@ void freecap(struct clientActionParameters* cap){
 	if (cap->usedres & CAPRES_CPA)          freeArray(cap->cpa);
 }
 
-int initcap (struct clientActionParameters* cap, char error[256], struct config * conf){
+int initcap (struct clientActionParameters* cap, char error[256],
+	 	struct config * conf){
 	int toConsoler[2], fromConsoler[2];
 	int size = conf->shm_size;
 
@@ -152,7 +153,7 @@ int processServerReply(struct actionParameters *ap,
 	/* Split into lines */
 	while((gtfsret = getTokenFromStreamBuffer( &ap->combuf,
 			&ap->comline, "\r\n", "\n", (char *)NULL)) > 0) {
-		fprintf(stderr,"read: %s", ap->comline.buf);
+		//fprintf(stderr,"read: %s", ap->comline.buf);
 		/* Split into tokens */
 		switch (getTokenFromBuffer( &ap->comline, &ap->comword, " ", "\t", NULL )) {
 		case -1:
@@ -235,8 +236,9 @@ int main (int argc, char * argv[]){
 	/* Possibly override with values from command line */
 	if ( *serveripstr != '\0' ){
 		snprintf(portstr, 8, "%d", conf.port);
-		if ( ( s = parseIP(serveripstr, &conf.ip, portstr, conf.forceIpVersion) ) ){
-			fprintf(stderr,"(main) serverip isn't a valid ip address%s\n", gai_strerror(s));
+		if ( (s = parseIP(serveripstr, &conf.ip, portstr, conf.forceIpVersion)) ){
+			fprintf(stderr,"(main) serverip isn't a valid ip address%s\n",
+ gai_strerror(s));
 			goto error;
 		} 
 	if (server_port)
@@ -252,7 +254,7 @@ int main (int argc, char * argv[]){
 	initializeStdinProtocol(&ap);
 
 	if (initcap(&cap, error, &conf) == -1){
-		fputs(error, stderr);
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "%s", error);
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
@@ -261,7 +263,7 @@ int main (int argc, char * argv[]){
 	ap.comip = conf.ip;
 	ap.comport = conf.port;
 	if ( (ap.comfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
-		fputs("error connecting to server", stderr);
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "error connecting to server\n");
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
@@ -270,14 +272,16 @@ int main (int argc, char * argv[]){
 	/* create a passive port to accept client connections. */
 	passport =  0;
 	if ( ( passsock = createPassiveSocket(&passport)) == -1){
-		fputs("Error setting up network connection\n", stderr);
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
+				"Error setting up network connection\n");
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
 
 	/* inform the server of our passive port */
 	if (-1 == writef( ap.comfd, "PORT %d\n", passport)){
-		perror("Couldn't send my port to server");
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Couldn't send my port to server\n");
+		perror("");
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}	
@@ -328,7 +332,7 @@ int main (int argc, char * argv[]){
 					break;
 				default: 
 					if (pSRret ==1) continue;
-					fprintf(stderr, "WTF did processServerReply just return: %d?\n",pSRret);
+					fprintf(stderr,"WTF did processServerReply just return:%d?\n",pSRret);
 					shellReturn = EXIT_FAILURE;
 			}
 			break;
@@ -343,7 +347,7 @@ int main (int argc, char * argv[]){
 					break;
 				default: 
 					if (pSRret ==1) continue;
-					fprintf(stderr, "WTF did processServerReply just return: %d?\n",pSRret);
+					fprintf(stderr,"WTF did processServerReply just return:%d?\n",pSRret);
 					shellReturn = EXIT_FAILURE;
 			}
 			break;
@@ -374,7 +378,8 @@ int main (int argc, char * argv[]){
 			switch(fdsi.ssi_signo){
 				case SIGINT:
 				case SIGQUIT:
-					fprintf(stderr,"Yeah i found %s",(fdsi.ssi_signo==SIGINT) ?"SIGINT": "SIGQUIT");
+					fprintf(stderr,"Yeah i found %s",(fdsi.ssi_signo==SIGINT) ?
+"SIGINT": "SIGQUIT");
 					shellReturn = EXIT_SUCCESS;
 					break;
 				case SIGCHLD:

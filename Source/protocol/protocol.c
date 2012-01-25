@@ -14,6 +14,7 @@
 #include "util.h"
 #include "config.h"
 #include "logger.h"
+#include "consoler.h"
 #include "tokenizer.h"
 
 /* reply is only used for the server to reply to the client not the other 
@@ -62,7 +63,8 @@ int processIncomingData(struct actionParameters *ap,
 	/* tokenize all lines received and process them */
 	while ((gtfsret = getTokenFromStreamBuffer(&ap->combuf,
 			&ap->comline, "\r\n", "\n", (char *)NULL)) > 0) {
-		fprintf(stderr,"found %s\n",ap->combuf.buf);
+		fprintf(stderr, "incomingdata got: %s____\n", ap->comline.buf);
+		consolemsg(ap->semid, aap->cap->outfd, "found %s",ap->combuf.buf);
 		if ((pcret = processCommand(ap, aap)) <= 0) return pcret;
 		/* NOTE: Remaining content in comline will be overwritten
 		 * by getTokenFrom*(). */
@@ -90,8 +92,8 @@ int processCommand(struct actionParameters *ap,
 	logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE,
 		"COMRECV: '%.*s'\n", ap->comline.buflen, ap->comline.buf);
 	/* get the first word of the line */
-	gtfbret = getTokenFromBuffer(&ap->comline,
-					&ap->comword, " ", "\t", (char *)NULL);
+	gtfbret = getTokenFromBuffer(&ap->comline, &ap->comword, " ", "\t", 
+			(char *)NULL);
 	if (gtfbret < 0) {
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "FATAL: "
 			"getTokenFromBuffer() failed in processCommand.\n");
@@ -115,7 +117,8 @@ action validateToken(struct buffer *token, struct protocol *prot) {
 
 /* This function needs to return gracefully! Either it succeeds completely
  * or rolls back any and every open ressource */
-int initap(struct actionParameters *ap, char emsg[256], struct config *conf, int semcount){
+int initap(struct actionParameters *ap, char emsg[256], struct config *conf, 
+		int semcount){
 	int logfds[2];
 	int logfilefd;
 	sigset_t mask;
@@ -140,7 +143,6 @@ int initap(struct actionParameters *ap, char emsg[256], struct config *conf, int
 		sperror("Can't create semaphores", emsg, 256);
 		goto error;
 	} else
-		fprintf(stderr, "%d\n", ap->semid);
 		ap->usedres |= APRES_SEMID;
 
 	ap->comfd = 0;

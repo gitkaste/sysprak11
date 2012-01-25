@@ -36,7 +36,8 @@ int semCreate(int num){
 		sem_array[i] = 1;
 	}
 	semopts.array = sem_array;
-	return (semctl(semid, 0, SETALL, semopts) == -1)? (perror("Creating semaphors"),-1): semid;
+	return (semctl(semid, 0, SETALL, semopts) == -1)? 
+		(perror("Creating semaphors"),-1): semid;
 }
 
 int semWait(int semid, int semnum){

@@ -19,15 +19,21 @@ int g_forceipversion = 4;
 
 int createPassiveSocket4(uint16_t *port){
 	int sockfd;
+	int yes = 1;
 	if ( (sockfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0)) < -1 ){
 		perror("couldn't attach to socket, damn");
 		return -1;
 	}
+	/* either this works or it doesn't, if it doesn't then it will work if no 
+	 * socket is lingering in the kernel on that port or it won't in which case 
+	 * we just fail down below */
+  setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 	struct sockaddr_in servaddr;
 	/* bind to wildcard ip (0.0.0.0), i.e. listen on all interfaces */
 	servaddr.sin_addr.s_addr = htonl (INADDR_ANY); 
 	servaddr.sin_port = htons(*port);
 	servaddr.sin_family = AF_INET;
+
 	if (bind(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) == -1){
 		perror("Couldn't bind to socket");
 		return -1;
@@ -42,14 +48,14 @@ int createPassiveSocket4(uint16_t *port){
 		return -1;
 	}
 	*port = ntohs(servaddr.sin_port);
-	fprintf(stderr, "opened passive socket on fd %d with port %d", sockfd, *port);
 	return sockfd;
 }
 
 int createPassiveSocket6(uint16_t *port){
 	int sockfd;
+	int yes = 1;
 	if ( g_forceipversion == 6) {
-		if ( (sockfd = socket(AF_INET6, SOCK_STREAM|SOCK_NONBLOCK|IPV6_V6ONLY, 0)) < -1 ){
+		if ((sockfd = socket(AF_INET6,SOCK_STREAM|SOCK_NONBLOCK|IPV6_V6ONLY,0))<-1){
 			perror("couldn't attach to socket, damn");
 			return -1;
 		}
@@ -59,6 +65,7 @@ int createPassiveSocket6(uint16_t *port){
 			return -1;
 		}
 	}
+  setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 	struct sockaddr_in6 servaddr6;
 	memset(&servaddr6, 0, sizeof(servaddr6));
 
@@ -80,7 +87,6 @@ int createPassiveSocket6(uint16_t *port){
 		return -1;
 	}
 	*port = ntohs(servaddr6.sin6_port);
-	fprintf(stderr, "opened passive v6 socket on fd %d with port %d", sockfd, *port);
 	return sockfd;
 }
 
@@ -103,12 +109,10 @@ int connectSocket(struct sockaddr *ip, uint16_t port){
 		((struct sockaddr_in *) ip)->sin_port = htons(port);
 	else
 		((struct sockaddr_in6 *) ip)->sin6_port = htons(port);
-	printf("connect: sockfd %d, port %d, ip ", sockfd, getPort(ip));
 	printIP(ip);
 	puts("");
 	if ( connect(sockfd, ip, (ip->sa_family == AF_INET)? sizeof (struct sockaddr_in):
 				sizeof(struct sockaddr_in6)) == -1){
-		fprintf(stderr, "(connectSocket) errno: %d\n", errno);
 		perror("Failure to connect to peer");
 		return -1;
 	}
