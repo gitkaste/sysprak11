@@ -29,11 +29,6 @@ char * putIP (struct sockaddr *a){
 	return getipstr(a, ip, 255);
 }
 
-void printIP(struct sockaddr *a){
-	char ip[255];
-	printf("%s", getipstr(a, ip, 255));
-}
-
 /*  returns 0 on success, error on failure */
 int parseIP(char * ip, struct sockaddr *a, char * port, int ipversion) {
 	struct addrinfo hints, *tmpa;

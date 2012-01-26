@@ -13,6 +13,7 @@ int logger(int pipefd, int filefd){
 	struct buffer buf;
 	if ( createBuf(&buf,4096) == -1) return -1;
 	while (1) { 
+		
 		switch( (s = readToBuf(pipefd, &buf)) ){
 		case -2 :
 			continue;
@@ -29,7 +30,6 @@ int logger(int pipefd, int filefd){
 				freeBuf(&buf);
 				return -1;
 			}
-			fsync(filefd);
 		}
 	}
 }
@@ -61,7 +61,7 @@ int logmsg(int semid, int pipefd, int loglevel, const char *fmt, ...){
 	buf.bufmax = strlen(ret) +1;
 	buf.buflen = strlen(ret);
 
-	if (semWait(semid, SEM_LOGGER) ==-1) {
+	if (semWait(semid, SEM_LOGGER) == -1) {
 		freeBuf(&buf);
 		printf("trouble getting pid");
 		return -1;

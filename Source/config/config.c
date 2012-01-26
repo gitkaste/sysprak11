@@ -32,7 +32,7 @@ void confDefaults(struct config *conf){
 	parseIP("0.0.0.0", &(conf->ip), NULL, 4);
 	conf->port = 4444;
 	strcpy(conf->logfile, "tmp/sysprak/server.log");
-	conf->loglevel = 1;
+	conf->loglevel = 100;
 	strcpy(conf->share, "tmp/sysprak/share");
 	/* read from /proc/sys/kernel/shmmax */
 	conf->shm_size = 33554432; 
@@ -100,7 +100,6 @@ int parseConfig (int conffd, struct config *conf){
 					retval = -1;
 					break;
 				}	
-				g_loglevel = conf->loglevel;
 			/*** shm_size ***/
 			} else if (!strncmp((char *)key.buf, "shm_size", key.buflen)){
 				conf->shm_size = (uint32_t) my_strtol((char *)value.buf);
@@ -190,6 +189,8 @@ int parseConfig (int conffd, struct config *conf){
 			} 
 		}
 	}
+
+	g_loglevel = conf->loglevel;
 
 	/*** Lookup IPs for ip bc_ip and bc_broadcast ***/
 	if (retval != -1){

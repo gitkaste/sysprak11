@@ -55,20 +55,14 @@ void print_usage(char * prog){
 int comfork(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
 
-	int pollret;
 	struct pollfd pollfds[2];
   struct signalfd_siginfo fdsi;
   ssize_t SRret;
-	socklen_t addrlen = sizeof(struct sockaddr_in);
 
 	if (ap->comfd == -1){
 		perror("Error accepting a connection");
-		return -3;
-	}else{
-		memset (&ap->comip, 0, addrlen);
-		if (!getpeername (ap->comfd, (struct sockaddr *)&ap->comip, &addrlen) || addrlen != sizeof(struct sockaddr_in))
-			printIP(&ap->comip);
-		/* BUGBUG: Hier muss gepolled werden. */
+		return -1;
+	} else {
 
 		/* Setting up stuff for Polling */
 		pollfds[0].fd = ap->comfd;    /* data incoming from client */
@@ -79,15 +73,15 @@ int comfork(struct actionParameters *ap,
 		pollfds[1].revents = 0;
 
 		while (1) {
-			pollret = poll(pollfds, 2, -1);
-
-			if (pollret < 0 || pollret == 0) {
-				if (errno == EINTR) continue; /* Signals */
-				fprintf(stderr, "POLLING Error.\n");
-				return -3;
+			
+			if ( poll(pollfds, 2, -1) <= 0) {
+				if (errno == EINTR || errno == EAGAIN ) continue; /* Signals */
+				logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "POLLING Error:%d - %s.\n", errno, strerror(errno));
+				return -1;
 			}
 
 			if(pollfds[0].revents & POLLIN) {  /* client calls */
+				logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "POLLING Error.\n");
 				switch(processIncomingData(ap, aap)){
 					case -1:
 						logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
@@ -106,12 +100,12 @@ int comfork(struct actionParameters *ap,
 							"VERBOSE (comfork): client hung up\n");
 						return 1;
 				}
-
 			} else if(pollfds[1].revents & POLLIN) { /* incoming signal */
 				SRret = read(ap->sigfd, &fdsi, sizeof(struct signalfd_siginfo));
 				if (SRret != sizeof(struct signalfd_siginfo)) {
-					fprintf(stderr, "signalfd returned something broken");
-					return -1;
+					logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, 
+							"signalfd returned something broken");
+					return -3;
 				}
 				switch(fdsi.ssi_signo){
 					case SIGINT:
@@ -119,7 +113,8 @@ int comfork(struct actionParameters *ap,
 						return -2; /*?*/
 				}
 			} else {
-				fprintf(stderr, "Dunno what to do with this poll");
+				logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN,
+					 "Dunno what to do with this poll");
 				return -3;
 			}
 		}
@@ -169,7 +164,7 @@ int main (int argc, char * argv[]){
 
 	if (initsap(&sap, error, &conf) == -1){
 		freeap(&ap);
-		fputs(error,stderr);
+		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "%s.\n", error);
 		exit(EXIT_FAILURE);
 	}
 
@@ -177,7 +172,7 @@ int main (int argc, char * argv[]){
 	if ( (sockfd = createPassiveSocket(&(conf.port))) == -1){
 		freeap(&ap);
 		freesap(&sap);
-		fputs("error setting up network", stderr);
+		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "Error setting up network.\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -196,25 +191,30 @@ int main (int argc, char * argv[]){
 
 		if (pollret < 0 || pollret == 0) {
 			if (errno == EINTR) continue; /* Signals */
-			fprintf(stderr, "POLLING Error.\n");
+			logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "Polling Error.\n");
 			shellReturn = EXIT_FAILURE;
 			break;
 		}
 
-		fputs("another poll round\t", stderr);
 		if(pollfds[0].revents & POLLIN) {    /* incoming client */
-			fputs("new client\n", stderr);
-			ap.comport = sizeof(ap.comip);
-			ap.comfd = accept(sockfd, (struct sockaddr *) &(ap.comip), (socklen_t *)&(ap.comport));
+			logmsg(ap.semid, ap.logfd, LOGLEVEL_VERBOSE, "New client.\n");
+
+			socklen_t iplen = sizeof (ap.comip);
+			ap.comfd = accept( sockfd, &(ap.comip), &iplen );
+			ap.comport = getPort(&ap.comip);
+
 			switch ((forkret = fork())){
 				/* BUGBUG error handling? */
 				case -1:
 					close(ap.comfd);
-					fputs("error forking off a new client connection", stderr);
+					logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL,
+							"Error forking off a new client connection\n");
+					shellReturn = EXIT_FAILURE;
 					break;
 				case 0: /* I'm in the child */
 					close(sockfd);
 					close(ap.sigfd);
+					logmsg(ap.semid, ap.logfd, LOGLEVEL_WARN, "Child\n");
 					/* fetch old mask, cf. initap!*/
 					if (sigprocmask(0, NULL, &mask) || 
 							(ap.sigfd = getSigfd(&mask)) <= 0 ){
@@ -227,10 +227,10 @@ int main (int argc, char * argv[]){
 						_exit(comret);
 					}
 				default: /* Parent branch */
+					logmsg(ap.semid, ap.logfd, LOGLEVEL_WARN, "Parent\n");
 					close(ap.comfd);
 			}
 		} else if(pollfds[1].revents & POLLIN) { /* incoming signal */
-			fputs("incoming signal\n", stderr);
 			SRret = read(ap.sigfd, &fdsi, sizeof(struct signalfd_siginfo));
 			if (SRret != sizeof(struct signalfd_siginfo)){
 				fprintf(stderr, "signalfd returned something broken");

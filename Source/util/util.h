@@ -139,7 +139,6 @@ int setFdNonblock(int fd);
 char * getipstr(const struct sockaddr *sa, char *s, size_t maxlen);
 /* returns a string representation of a, return must not be freed! */
 char * putIP (struct sockaddr *a);
-void printIP(struct sockaddr *a);
 /* fills a with ip, port and other information avaiable, 
  * returns 1 on success, otherwise -1 */
 int parseIP(char * ip, struct sockaddr *a, char * port, int ipversion);

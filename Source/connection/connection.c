@@ -109,8 +109,6 @@ int connectSocket(struct sockaddr *ip, uint16_t port){
 		((struct sockaddr_in *) ip)->sin_port = htons(port);
 	else
 		((struct sockaddr_in6 *) ip)->sin6_port = htons(port);
-	printIP(ip);
-	puts("");
 	if ( connect(sockfd, ip, (ip->sa_family == AF_INET)? sizeof (struct sockaddr_in):
 				sizeof(struct sockaddr_in6)) == -1){
 		perror("Failure to connect to peer");

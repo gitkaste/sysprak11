@@ -64,7 +64,6 @@ int processIncomingData(struct actionParameters *ap,
 	/* tokenize all lines received and process them */
 	while ((gtfsret = getTokenFromStreamBuffer(&ap->combuf,
 			&ap->comline, "\r\n", "\n", (char *)NULL)) > 0) {
-		consolemsg(ap->semid, aap->cap->outfd, "found %s",ap->combuf.buf);
 		if ((pcret = processCommand(ap, aap)) <= 0) return pcret;
 		/* NOTE: Remaining content in comline will be overwritten
 		 * by getTokenFrom*(). */
@@ -172,7 +171,7 @@ int initap(struct actionParameters *ap, char emsg[256], struct config *conf,
 	time_t u = time(NULL);
 
 	if ( (t = localtime(&u)) == 0 ) return -1;
-	if ( !(strftime(s, 255, "====Starting up client on %c====\n", t)) ) return -1;
+	if ( !(strftime(s, 255, "====Starting up on %c====\n", t)) ) return -1;
 
 	if ( -1 == writeWrapper(logfilefd, s, strlen(s))){
 		sperror("error writing to log file", emsg, 256);
@@ -201,7 +200,6 @@ int initap(struct actionParameters *ap, char emsg[256], struct config *conf,
 		close(logfilefd);
 		/* Quitting */
 		freeap(ap);
-		fputs("logger shutting down\n",stderr);
 		_exit(EXIT_SUCCESS);
 	default: /* we are in the parent */
 		close(logfilefd);

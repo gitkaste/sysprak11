@@ -115,7 +115,7 @@ int consoler(int infd, int outfd) {
 	struct buffer stdinbuf;
 	struct buffer stdoutbuf;
 	struct buffer stdoutline;
-	int gwret, gtfbret, readret;
+	int gwret, gtfbret = 0, readret;
 	int ret = 1;
 	struct termios new_io, old_io;
 
@@ -168,12 +168,13 @@ int consoler(int infd, int outfd) {
 				stdinbuf.buflen + 3, "");
 			
 			/* Get all lines and print them */
-			while((gtfbret = getTokenFromStreamBuffer(&stdoutbuf,
+			 while((gtfbret = getTokenFromStreamBuffer(&stdoutbuf,
 					&stdoutline, "\r\n", "\n",
 					(char *)NULL)) > 0) {
 				writeBuf(STDOUT_FILENO, &stdoutline);
 				writef(STDOUT_FILENO, "\r\n");
 			}
+
 			if(gtfbret < 0) {
 				ret = -1;
 				break;

@@ -280,7 +280,7 @@ int main (int argc, char * argv[]){
 	}
 
 	/* inform the server of our passive port */
-	if (-1 == writef( ap.comfd, "PORT %d\n", passport)){
+	if (-1 == writef( cap.serverfd, "PORT %d\n", passport)){
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "Couldn't send my port to server\n");
 		perror("");
 		shellReturn = EXIT_FAILURE;
@@ -351,7 +351,7 @@ int main (int argc, char * argv[]){
 			}
 			while ((gtfsRet = getTokenFromStreamBuffer(&ap.combuf,
 				&ap.comline, "\r\n", "\n", (char *)NULL)) > 0) {
-				consolemsg(ap.semid, aap.cap->outfd, "found %s",ap.comline.buf);
+				//consolemsg(ap.semid, aap.cap->outfd, "found %s",ap.comline.buf);
 				fflush(stdout);
 				if ((pcret = processCommand(&ap, &aap)) <= 0)
 					consolemsg(ap.semid, aap.cap->outfd, "command %s not understood", 
@@ -375,7 +375,6 @@ int main (int argc, char * argv[]){
 			}
 			break;
 		} else if(pollfds[3].revents & POLLIN) { /* incoming signal */
-			fputs("incoming signal\n", stderr);
 			SRret = read(ap.sigfd, &fdsi, sizeof(struct signalfd_siginfo));
 			if (SRret != sizeof(struct signalfd_siginfo)){
 				fprintf(stderr, "signalfd returned something broken");
@@ -413,7 +412,6 @@ int main (int argc, char * argv[]){
 		/* logmsg(0, ap.logfd, LOGLEVEL_VERBOSE, "%s", msg); */
 		if (shellReturn != EXIT_NO) break;
 	}
-	puts("end of loop\n");
 
 error:
 	freeBuf(&msg);
@@ -421,7 +419,7 @@ error:
 	freeap(&ap);
 	freecap(&cap); /* closes all open file handles with the consoler */
 	if ( waitpid(cap.conpid, NULL, 0) < 0 ||  waitpid(ap.logpid, NULL, 0) < 0) {
-		puts("Did Burpy: Unclean Shutdown - Sorry\n");
+		fputs("Did Burpy: Unclean Shutdown - Sorry\n", stderr);
 		exit(shellReturn);
 	}
 	exit(shellReturn);
