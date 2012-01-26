@@ -65,6 +65,7 @@ int stdin_resultsAction(struct actionParameters *ap,
 
 int stdin_exitAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
+	consolemsg(ap->semid, aap->cap->outfd, "closing from within");
 	return 0;
 }
 

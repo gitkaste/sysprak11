@@ -60,7 +60,7 @@ int comfork(struct actionParameters *ap,
   ssize_t SRret;
 
 	if (ap->comfd == -1){
-		perror("Error accepting a connection");
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Error accepting a connection");
 		return -1;
 	} else {
 
@@ -76,12 +76,12 @@ int comfork(struct actionParameters *ap,
 			
 			if ( poll(pollfds, 2, -1) <= 0) {
 				if (errno == EINTR || errno == EAGAIN ) continue; /* Signals */
-				logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "POLLING Error:%d - %s.\n", errno, strerror(errno));
+				logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "POLLING Error:%d - %s.\n", 
+						errno, strerror(errno));
 				return -1;
 			}
 
 			if(pollfds[0].revents & POLLIN) {  /* client calls */
-				logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "POLLING Error.\n");
 				switch(processIncomingData(ap, aap)){
 					case -1:
 						logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,

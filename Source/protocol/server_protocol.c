@@ -72,8 +72,7 @@ int unknownCommandAction(struct actionParameters *ap,
 int statusAction(struct actionParameters *ap,
 		union additionalActionParameters *aap) {
 	char *msg;
-	msg = stringBuilder("WTF\n",
-		ap->comword.buf);
+	msg = stringBuilder("WTF %s\n", ap->comword.buf);
 	reply(ap->comfd, ap->logfd, ap->semid, REP_WARN, msg);
 	free(msg);
 	return 1;
@@ -100,7 +99,7 @@ int searchAction(struct actionParameters *ap,
 			perror("(searchAction) Problem forking");
 			return -1;
 		case 0:
-			if (writef(sockfd, "%d RESULT SOCKET %d", REP_COMMAND, port) < 0) return -2;
+			if (writef(sockfd, "%d RESULT SOCKET %d\n", REP_COMMAND, port) < 0) return -2;
 			return  (sendResult(sockfd, ap, aap->sap) == 1) ? -2 : -3;
 		default:
 			close(sockfd);
@@ -113,42 +112,41 @@ int helpAction(struct actionParameters *ap,
 	char * msg;
 	struct protocol * p = ap->prot;
 	for (int i =0; i < p->actionCount; i++){
-		msg = stringBuilder("server: %s %s\n", p->actions[i].actionName, p->actions[i].description);
-		reply(ap->comfd, ap->logfd, ap->semid, REP_TEXT,msg);
+		msg = stringBuilder("server: %s %s\n", p->actions[i].actionName, 
+				p->actions[i].description);
+		if ( -1 == reply(ap->comfd, ap->logfd, ap->semid, REP_TEXT,msg)){
+			free(msg);
+		  return -1;
+		}
 		free(msg);
 	}
 	return 1;
 }
 
-// buggy as fuck
 int filelistAction(struct actionParameters *ap,
 	union additionalActionParameters *aap){
 	uint16_t port = 0;
 	pid_t pid;
+
 	int sockfd = createPassiveSocket(&port); ;
-	//socklen_t addrlen;
-	//struct sockaddr_in addr;
-	char buf[16];
 	if (!sockfd) return -1;
-	fflush(stderr);
+	
 	switch( pid = fork()){
 		case -1:
 			close(sockfd);
 			perror("(filelistAction) Problem forking");
 			return -1;
 		case 0:
-	//		addrlen = sizeof(struct sockaddr_in);
-			//if (getpeername (sockfd, (struct sockaddr *)&addr, &addrlen) ||
-			//		addrlen != sizeof(struct sockaddr_in)) return -2;
-			// BUGBUG ap->comip = addr.sin_addr;
-			// BUGBUG ap->comport = addr.sin_port;
-			if (inet_ntop(AF_INET, &ap->comip, buf, sizeof(buf)))
-			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "connecting to %s:%d\n", buf,
-					ntohs(ap->comport));
-			if (writef(sockfd, "%d SENDLIST SOCKET %d", REP_COMMAND, port) < 0) return -2;
+			setFdBlocking(sockfd);
+			socklen_t iplen = sizeof (ap->comip);
+			ap->comfd = accept( sockfd, &(ap->comip), &iplen );
+			ap->comport = getPort(&ap->comip);
 			return  (recvFileList(sockfd, ap, aap->sap) == 1) ? -2 : -3;
 		default:
 			close(sockfd);
+			if (writef(ap->comfd, "%d SENDLIST SOCKET %d\n", REP_COMMAND, port) < 0) return -1;
+			else 
+				logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "filelist connect successful");
 			return 1;
 	}
 }

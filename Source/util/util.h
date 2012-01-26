@@ -132,6 +132,7 @@ struct flEntry {
 /* set a file descriptor fd non blocking
  * returns -1 for failure, 1 on success*/ 
 int setFdNonblock(int fd);
+int setFdBlocking(int fd);
 
 /***************** NETWORK STUFF *******************/
 /* prints a string representation of sa into s (upto maxlen)

@@ -26,7 +26,7 @@ int createPassiveSocket4(uint16_t *port){
 	}
 	/* either this works or it doesn't, if it doesn't then it will work if no 
 	 * socket is lingering in the kernel on that port or it won't in which case 
-	 * we just fail down below */
+	 * we just fail further down below */
   setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 	struct sockaddr_in servaddr;
 	/* bind to wildcard ip (0.0.0.0), i.e. listen on all interfaces */
@@ -65,6 +65,7 @@ int createPassiveSocket6(uint16_t *port){
 			return -1;
 		}
 	}
+
   setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 	struct sockaddr_in6 servaddr6;
 	memset(&servaddr6, 0, sizeof(servaddr6));
@@ -109,6 +110,9 @@ int connectSocket(struct sockaddr *ip, uint16_t port){
 		((struct sockaddr_in *) ip)->sin_port = htons(port);
 	else
 		((struct sockaddr_in6 *) ip)->sin6_port = htons(port);
+
+	fprintf(stderr, "\nconnecting to %p %s:%d\n", ip, putIP(ip), port);
+
 	if ( connect(sockfd, ip, (ip->sa_family == AF_INET)? sizeof (struct sockaddr_in):
 				sizeof(struct sockaddr_in6)) == -1){
 		perror("Failure to connect to peer");
@@ -148,11 +152,13 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 	char port[7];
 	char ipstr[56];
 	/* get a line */
-	while ( ( res = getTokenFromStream( ap->comfd, &ap->combuf, &ap->comline, "\n", "\r\n",NULL ) ) ){
+
+	while ( ( res = getTokenFromStream( ap->comfd, &ap->combuf, &ap->comline, 
+					"\n", "\r\n",NULL ) ) ){
 		if (res ==  -1) return -3;
 
 		/* get first word -> ip */
-		if (getTokenFromBuffer( &(ap->combuf), &(ap->comword), " ", "\t",NULL ) == -1)
+		if (getTokenFromBuffer( &(ap->combuf), &(ap->comword), " ", "\t",NULL )==-1 )
 			return -1;
 		strncpy(ipstr, (char *)ap->combuf.buf, 56);
 
@@ -178,7 +184,8 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 		if (results2) results = results2;
 		else return -3;
 
-		logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "%d)\t%s\t(%d)", counter++, file.filename, file.size);
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "%d)\t%s\t(%d)", counter++,
+			 	file.filename, file.size);
 	}
 	return 2;
 }

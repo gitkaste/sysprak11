@@ -52,4 +52,3 @@ char *path_join(const char * basedir, const char * subdir){
 	if (!fulldirname) return NULL;
 	return strcat(strcat(strcpy(fulldirname,basedir),"/"), subdir);
 }
-

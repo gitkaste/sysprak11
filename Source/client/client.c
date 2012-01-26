@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <signal.h>
 #include <poll.h>
@@ -114,16 +115,16 @@ int processCode(int code, struct actionParameters *ap,
 		case REP_OK:
 			return consolemsg(ap->semid, aap->cap->outfd, "OK");
 		case REP_TEXT:
-			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf);
+			return consolemsg(ap->semid, aap->cap->outfd, "%s\n", ap->comline.buf);
 		case REP_COMMAND:
 			initializeClientProtocol(ap);
 			ret = processCommand(ap, aap);
 			initializeStdinProtocol(ap);
 			return ret;
 		case REP_WARN:
-			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf);
+			return consolemsg(ap->semid, aap->cap->outfd, "%s\n", ap->comline.buf);
 		case REP_FATAL:
-			return consolemsg(ap->semid, aap->cap->outfd, "%s", ap->comline.buf);
+			return consolemsg(ap->semid, aap->cap->outfd, "%s\n", ap->comline.buf);
 			return -1;
 		default:
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "FATAL: "
@@ -147,7 +148,7 @@ int processServerReply(struct actionParameters *ap,
 			return 1;
 		case 0:
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, 
-					"(processServerReply) ap->comfd closed.\n");
+					"(processServerReply) ap->serverfd closed.\n");
 			return -1;
 	}
 	/* Split into lines */
@@ -155,6 +156,8 @@ int processServerReply(struct actionParameters *ap,
 			&ap->comline, "\r\n", "\n", (char *)NULL)) > 0) {
 		//fprintf(stderr,"read: %s", ap->comline.buf);
 		/* Split into tokens */
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE,
+		"SRVRECV: '%.*s'\n", ap->comline.buflen, ap->comline.buf);
 		switch (getTokenFromBuffer( &ap->comline, &ap->comword, " ", "\t", NULL )) {
 		case -1:
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
@@ -170,6 +173,7 @@ int processServerReply(struct actionParameters *ap,
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, 
 				"(procssServerReply) got command '%s'\n", ap->comline.buf);
 			if ( (pcret = processCode(code, ap, aap)) <= 0 ) return pcret;
+			break;
 		default:
 			logmsg( ap->semid, ap->logfd, LOGLEVEL_WARN,
 				"WARN: getTokenFromBuffer() gave unknown return.\n" );
@@ -199,7 +203,7 @@ int main (int argc, char * argv[]){
 	uint16_t passport;
 	int opt, passsock, s;
 #define EXIT_NO (EXIT_FAILURE * 2+3)
-	int pSRret, SRret, shellReturn=EXIT_NO, gtfsRet, pcret, rtbRet;
+	int pSRret, SRret, shellReturn=EXIT_NO, gtfsRet, rtbRet;
 	pid_t uploadpid;
 	socklen_t socklen = sizeof(struct sockaddr_in);
 	struct sockaddr_in peer_addr;
@@ -280,6 +284,7 @@ int main (int argc, char * argv[]){
 	}
 
 	/* inform the server of our passive port */
+	consolemsg(ap.semid, cap.outfd, "sending PORT %d\n", passport);
 	if (-1 == writef( cap.serverfd, "PORT %d\n", passport)){
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "Couldn't send my port to server\n");
 		perror("");
@@ -288,11 +293,11 @@ int main (int argc, char * argv[]){
 	}	
 
 	/* send our file list */
-/*	if (-1 == writef( ap.comfd, "FILELIST\n" )){
+	if (-1 == writef( cap.serverfd, "FILELIST\n" )){
 		perror("Coulnd't send my filelist to server");
 		shellReturn = EXIT_FAILURE;
 		goto error;
-	}	*/
+	}
   //consolemsg(ap.semid, aap.cap->outfd, "successfully connected to server\n");
 	logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "successfully started up\n");
 		/* Main Client Loop */
@@ -323,17 +328,21 @@ int main (int argc, char * argv[]){
 		}
 
 		if(pollfds[0].revents & POLLIN) { /* Server greets us */
-			fprintf(stderr, "server greets us\n");
+			//gprintf(stderr, "server greets us\n");
 		 	switch (pSRret = processServerReply(&ap,&aap)){
+				case 0: 
+					continue;
 				case -1:
 					shellReturn = EXIT_FAILURE;
 					break;
-				case 0: 
-					shellReturn = EXIT_SUCCESS;
-					break;
+				case -2:
+					_exit(EXIT_SUCCESS);
+				case -3:
+					_exit(EXIT_FAILURE);
 				default: 
 					if (pSRret ==1) continue;
-					fprintf(stderr,"WTF did processServerReply just return:%d?\n",pSRret);
+					consolemsg(ap.semid, cap.outfd,
+							"WTF did processServerReply just return:%d?\n",pSRret);
 					shellReturn = EXIT_FAILURE;
 			}
 			break;
@@ -353,9 +362,20 @@ int main (int argc, char * argv[]){
 				&ap.comline, "\r\n", "\n", (char *)NULL)) > 0) {
 				//consolemsg(ap.semid, aap.cap->outfd, "found %s",ap.comline.buf);
 				fflush(stdout);
-				if ((pcret = processCommand(&ap, &aap)) <= 0)
-					consolemsg(ap.semid, aap.cap->outfd, "command %s not understood", 
+				switch(processCommand(&ap, &aap)){
+					case -1:
+						shellReturn = EXIT_FAILURE;
+						break;
+					case 0:
+						shellReturn = EXIT_SUCCESS;
+						break;
+					case 1:
+						continue;
+						break;
+					default:
+						consolemsg(ap.semid, aap.cap->outfd, "command %s not understood", 
 							ap.comline.buf);
+				}
 			}
 		} else if(pollfds[2].revents & POLLIN) { /* Client connection incoming */
 			int uploadfd = accept(passsock, (struct sockaddr *) &peer_addr, &socklen);
@@ -366,6 +386,8 @@ int main (int argc, char * argv[]){
 				perror("(client main) Problem forking when accepting client conn");
 				goto error;
 			case 0:
+				consolemsg(ap.semid, cap.outfd, "closing");
+
 				close(passsock);
 				_exit( handleUpload(uploadfd,cap.outfd,&ap) );
 			default:
@@ -373,7 +395,6 @@ int main (int argc, char * argv[]){
 				addChildProcess(cap.cpa, 'u', cap.conpid);
 				close( uploadfd );
 			}
-			break;
 		} else if(pollfds[3].revents & POLLIN) { /* incoming signal */
 			SRret = read(ap.sigfd, &fdsi, sizeof(struct signalfd_siginfo));
 			if (SRret != sizeof(struct signalfd_siginfo)){

@@ -63,12 +63,11 @@ int logmsg(int semid, int pipefd, int loglevel, const char *fmt, ...){
 
 	if (semWait(semid, SEM_LOGGER) == -1) {
 		freeBuf(&buf);
-		printf("trouble getting pid");
+		fprintf(stderr, "trouble getting pid");
 		return -1;
 	}
 	ssize_t written = writeBuf(pipefd, &buf);
 	freeBuf(&buf);
 	if (semSignal(semid, SEM_LOGGER) ==-1) return -1;
-
 	return (written > 0) ? 1 : -1;
 }

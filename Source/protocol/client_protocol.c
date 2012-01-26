@@ -42,8 +42,9 @@ int client_resultAction(struct actionParameters *ap,
 		case -1:
 			return -1;
 		case 0:
+			close(aap->cap->serverfd);
 			/* Command is RESULT (already stripped off) SOCKET port */
-			gtfsret = getTokenFromStreamBuffer( &ap->combuf, &ap->comword, " ", "\t", NULL);
+			gtfsret = getTokenFromStreamBuffer( &ap->comline, &ap->comword, " ", "\t", NULL);
 			if (gtfsret != 1 || strcasecmp ( (char *)&ap->comword, "SOCKET"))
 				_exit(EXIT_FAILURE);
 			/* Dies sollte port sein */
@@ -69,25 +70,28 @@ int client_sendlistAction(struct actionParameters *ap,
 		union additionalActionParameters *aap){
 	pid_t child;
 	int gtfsret;
+
 	switch(child = fork()){
 		case -1:
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
+					"(client_sendlistAction) forking failed\n");
 			return -1;
+
 		case 0:
 			/* Command is SENDLIST (already stripped off) SOCKET port */
-			gtfsret = getTokenFromStreamBuffer( &ap->combuf, &ap->comword, " ", "\t", NULL);
-			if (gtfsret != 1 || strcasecmp ( (char *)&ap->comword, "SOCKET"))
-				_exit(EXIT_FAILURE);
-			/* Dies sollte port sein */
-			gtfsret = getTokenFromStreamBuffer( &ap->combuf, &ap->comword, " ", "\t", NULL);
+			gtfsret = getTokenFromBuffer( &ap->comline, &ap->comword, " ", "\t", 
+					"SOCKET", NULL);
 			if (gtfsret != 1)
-				_exit(EXIT_FAILURE);
-			errno =0;
-			int port = strtol( (char *) ap->comword.buf, NULL, 10);
-			if ( errno || port<0|| port>65536 ) _exit(EXIT_FAILURE);
+				return -3;
+
+			int port = my_strtol( (char *) ap->comword.buf);
+			if ( errno || port<0|| port>65536 ) return -1;
+
 			int sockfd = connectSocket(&ap->comip, port);
-			if (sockfd == -1) _exit(EXIT_FAILURE);
+			if (sockfd == -1) return -1;
 			int ret = parseDirToFD(sockfd, ap->conf->share, "");
 			return (ret == 1)? -2 : -3;
+
 		default:
 			/* s for sendlist */
 			addChildProcess(aap->cap->cpa, 'u', aap->cap->conpid);

@@ -37,6 +37,7 @@ void freeBuf(struct buffer *buf){
 ssize_t writeWrapper (int fd, const void *bufv, size_t count){
 	char * buf = (char *) bufv;
 	int countwritten;
+
 	errno = 0;
 	while ( ( countwritten = write(fd,buf,count)) < 0){
 		if (errno == EINTR || errno == EAGAIN){

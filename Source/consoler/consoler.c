@@ -234,7 +234,7 @@ int consolemsg(int semid, int pipefd, const char *fmt, ...) {
 	va_start(ap, fmt);
 	p = vStringBuilder(fmt, ap);
 	va_end(ap);
-	
+
 	if(semWait(semid, SEM_CONSOLER) == -1) return -1;
 	if(writeWrapper(pipefd, p, strlen(p)) < 0) return -1;
 	free(p);
