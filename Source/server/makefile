@@ -3,7 +3,9 @@ include ../Makefile
 
 .PRECIOUS: server
 server: $(OBJS) $(SERVEROBJS) server.o
-	echo $(OBJS)
+	rm server.log	
 	$(CC) -o $@ $^
-	#G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind -v --leak-check=full --read-var-info=yes --log-file=./valgrindlog ./$@ server.conf
-	./$@ server.conf
+
+test: server
+	G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind -v --read-var-info=yes  --leak-check=full --show-reachable=yes --log-file=./valgrindlog ./server server.conf
+	#./$@ server.conf

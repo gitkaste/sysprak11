@@ -7,6 +7,7 @@
 struct array *initArray(size_t itemsize, size_t initial_size, int shmid){
 	struct array * arr;
 	int totalmemsize = sizeof(struct array) + initial_size;
+	fflush(stderr);
 	if (shmid == -1){
 		arr = malloc(totalmemsize);
 		if (!arr) return arr;
@@ -14,12 +15,9 @@ struct array *initArray(size_t itemsize, size_t initial_size, int shmid){
 		arr = shmat(shmid, NULL, 0);
 		if (arr == (void *) -1) return NULL;
 	}
-//	fprintf(stderr, "arr: %p itemsize %d size %d shmid %d\n", (void *)arr, (int)itemsize, (int) initial_size, shmid);
 	arr->mem = arr + sizeof(struct array);
-//	fprintf(stderr, "arr: %p itemsize %d size %d shmid %d\n", (void *)arr, (int)itemsize, (int) initial_size, shmid);
-//fflush(stderr);
 	arr->memsize = initial_size;
-	arr->itemsize = itemsize;
+	arr->itemsize = (int)itemsize;
 	arr->itemcount = 0;
 	arr->shmid = shmid;
 	return arr;
@@ -37,25 +35,26 @@ void freeArray(struct array *a){
 struct array *addArrayItem (struct array *a, void *item){
 	if (a->memsize <= a->itemsize * (a->itemcount + 1)){
 		if (a->shmid == -1){
-			void *newmem=realloc(a->mem, sizeof(struct array)+a->itemsize*(a->itemcount + 10));
+			char *newmem=realloc(a, sizeof(struct array)+a->itemsize*(a->itemcount + 10));
 			/* the heaps too small - crap, nothing we can do */
 			if (!newmem){
 				return NULL;
 			}else{
 				//the allocation was moved to accomodate the new size
-				if (newmem != a){
-					a = newmem;
+				if (newmem != (char *)a){
+					a = (struct array *)newmem;
 					a->mem = a + sizeof(struct array);
 				}
 				a->memsize = a->itemsize * (a->itemcount + 10);
 			}
-		}else{
+		} else {
 			/* In case the shmem segment is too small, there is nothing we can do */
 			return NULL;
 		}
 	}	
+	memmove((char *)a->mem + (a->itemcount) * a->itemsize, item, a->itemsize); 
 	a->itemcount++;
-	return (memcpy((char *)a->mem + (a->itemcount-1) * a->itemsize, item, a->itemsize)) ? a : NULL;
+	return a;
 }
 
 int remArrayItem (struct array *a, unsigned long num){

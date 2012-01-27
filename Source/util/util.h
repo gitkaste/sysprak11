@@ -124,7 +124,7 @@ void semClose(int semgroupid);
  * Represents a file in the network.  */
 struct flEntry {
 	/* sockaddr contains port information as well */
-	struct sockaddr ip;
+	struct sockaddr_storage ip;
 	char filename[FILENAME_MAX];
 	unsigned long size;
 };
@@ -159,6 +159,8 @@ int setIP(struct sockaddr *a, void * ip);
 int sperror(char * pref, char * buf, int buflen);
 /* wrapper for strtol using base 10 and setting errno for any error */
 int my_strtol(char * buf);
+/*  is a string completely made up of space, tabs and newlines */
+int iswhitespace(char * buf);
 /* is dirname a valid dir? returns 1 for success, 0 otherwise */
 int isDir(const char *dirname);
 /* is it possible to write to dirname? returns 1 for success, 0 otherwise */
@@ -168,4 +170,5 @@ int isPowerOfTwo (unsigned int x);
 /* returns a malloced string, containing a concatenation of basedir and subdir, 
  * or NULL on return */
 char *path_join(const char * basedir, const char * subdir);
+
 #endif

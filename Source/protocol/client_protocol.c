@@ -8,6 +8,7 @@
 #include "client_protocol.h"
 #include "logger.h"
 #include "connection.h"
+#include "consoler.h"
 #include "tokenizer.h"
 #include "util.h"
 
@@ -29,39 +30,65 @@ int initializeClientProtocol(struct actionParameters *ap){
 
 int client_unknownCommandAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
-	logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
+	consolemsg(ap->semid, aap->cap->outfd, 
 		"Command \"%s\" not understood.\n", ap->comword.buf);
-	return -1;
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN,
+		"Command \"%s\" not understood.\n", ap->comword.buf);
+	return 1;
 }
 
 int client_resultAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
 	pid_t child;
-	int gtfsret;
+	int sockfd, num;
+
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN,
+			"(client_resultAction) started %s\n", ap->comword.buf);
 	switch(child = fork()){
 		case -1:
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
+				"(client_resultAction) can't fork.\n");
 			return -1;
 		case 0:
 			close(aap->cap->serverfd);
+
 			/* Command is RESULT (already stripped off) SOCKET port */
-			gtfsret = getTokenFromStreamBuffer( &ap->comline, &ap->comword, " ", "\t", NULL);
-			if (gtfsret != 1 || strcasecmp ( (char *)&ap->comword, "SOCKET"))
-				_exit(EXIT_FAILURE);
-			/* Dies sollte port sein */
-			gtfsret = getTokenFromStreamBuffer( &ap->combuf, &ap->comword, " ", "\t", NULL);
-			if (gtfsret != 1)
-				_exit(EXIT_FAILURE);
-			errno =0;
-			int port = strtol( (char *) ap->comword.buf, NULL, 10);
-			if ( errno || port<0 || port>65536 ) _exit(EXIT_FAILURE);
-			int sockfd = connectSocket(&ap->comip, port);
-			if (sockfd == -1) _exit(EXIT_FAILURE);
+			if ( 1 != getTokenFromStreamBuffer( &ap->comline, &ap->comword,
+					"SOCKET", " ", "\t", NULL) ) {
+				logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
+					"(client_resultAction) can't fork.\n", ap->comword.buf);
+				return -3;
+			}
+
+			int port = my_strtol( (char *) ap->comword.buf);
+			if ( errno || port<0 || port > 65536 ) {
+			 	logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
+				"(client_resultAction) get port.\n", ap->comword.buf);
+				return -3;
+				}
+			if ( -1 == (sockfd = connectSocket(&ap->comip, port))){
+			 	logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
+				"(client_resultAction) can't connect.\n", ap->comword.buf);
+				return -3;
+				}
 			/*BUGBUG shouldn't we clear the results array before getting new ones?*/	
-			int ret = recvResult(sockfd, ap,aap->cap->results);
-			return (ret == 1)? -2 : -3;
+			switch( (num = recvResult(sockfd, ap,aap->cap->results) )){
+				case 0:
+					consolemsg(ap->semid, aap->cap->outfd, "Didn't find any results.\n");
+					break;
+				case -3:
+					logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
+						"(client_resultAction) recvResult failed");
+					break;
+				default:
+					consolemsg(ap->semid, aap->cap->outfd, "Found %d results.\n", num);
+					break;
+			}
+
+			consolemsg(ap->semid, aap->cap->outfd, "Found %d results for your search.\n", num);
 		default:
 			/* r for resultAction */
-			addChildProcess(aap->cap->cpa, 'r', aap->cap->conpid);
+			addChildProcess(aap->cap->cpa, 'r', child);
 			return 1;
 	}
 }
@@ -69,7 +96,6 @@ int client_resultAction(struct actionParameters *ap,
 int client_sendlistAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
 	pid_t child;
-	int gtfsret;
 
 	switch(child = fork()){
 		case -1:
@@ -79,17 +105,38 @@ int client_sendlistAction(struct actionParameters *ap,
 
 		case 0:
 			/* Command is SENDLIST (already stripped off) SOCKET port */
-			gtfsret = getTokenFromBuffer( &ap->comline, &ap->comword, " ", "\t", 
-					"SOCKET", NULL);
-			if (gtfsret != 1)
+			if ( 1 != getTokenFromBuffer( &ap->comline, &ap->comword, " ", "\t", 
+					"SOCKET", NULL)){
+				logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
+					"(client_sendlistAction) forking failed\n");
 				return -3;
+			}
 
 			int port = my_strtol( (char *) ap->comword.buf);
-			if ( errno || port<0|| port>65536 ) return -1;
+			if ( errno || port<0|| port>65536 ) {
+				logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
+					"(client_sendlistAction) forking failed\n");
+				return -3;
+			}
+
+			socklen_t iplen = sizeof(aap->cap->serverfd);
+			if (getpeername (aap->cap->serverfd, &ap->comip, &iplen)) 
+				perror("getpeername");
+
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "(client_sendlistAction) "
+				"connecting to %s:%d via %d %d\n", putIP(&ap->comip), port,ap->comfd, aap->cap->serverfd);
 
 			int sockfd = connectSocket(&ap->comip, port);
-			if (sockfd == -1) return -1;
+			if (sockfd == -1) {
+				logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
+					"(client_sendlistAction) connecting failed\n");
+				return -3;
+			}
+
 			int ret = parseDirToFD(sockfd, ap->conf->share, "");
+			close (sockfd);
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, 
+				"(client_sendlistAction) finished\n");
 			return (ret == 1)? -2 : -3;
 
 		default:

@@ -34,4 +34,3 @@ int stdin_helpAction(struct actionParameters *ap,
  * diese wird bei Resultatausgabe mit ausgegeben). */
 int stdin_downloadAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap);
-

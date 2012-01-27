@@ -81,26 +81,26 @@ int comfork(struct actionParameters *ap,
 				return -1;
 			}
 
-			if(pollfds[0].revents & POLLIN) {  /* client calls */
+			if ( pollfds[0].revents & POLLIN ) {  /* client calls */
 				switch(processIncomingData(ap, aap)){
+					case 0:
+						logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE,
+							"VERBOSE (comfork): client hung up\n");
+						return 0;
 					case -1:
 						logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
 							"FATAL (comfork): processIncomingData errored.\n");
 						return -1;
 					case -2:
 						logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE,
-							"VERBOSE (comfork): child %d quit with success.\n");
-						break;
+							"VERBOSE (comfork): child %d quit with success.\n", getpid());
+						return -2;
 					case -3:
 						logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN,
-							"WARNING (comfork): client %d gave an error.\n");
-						break;
-					case 0:
-						logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE,
-							"VERBOSE (comfork): client hung up\n");
-						return 1;
+							"WARNING (comfork): client %d gave an error.\n", getpid());
+						return -3;
 				}
-			} else if(pollfds[1].revents & POLLIN) { /* incoming signal */
+			} else if (pollfds[1].revents & POLLIN) { /* incoming signal */
 				SRret = read(ap->sigfd, &fdsi, sizeof(struct signalfd_siginfo));
 				if (SRret != sizeof(struct signalfd_siginfo)) {
 					logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, 
@@ -124,7 +124,6 @@ int comfork(struct actionParameters *ap,
 int main (int argc, char * argv[]){
 	char error[256];
 	/* in and out fds are seen as from the clients view point */
-	struct config conf;
 	char * conffilename = "server.conf";
 	struct actionParameters ap;
 	struct serverActionParameters sap;
@@ -151,25 +150,25 @@ int main (int argc, char * argv[]){
 	if ( optind == (argc-1) )
 		conffilename = argv[optind];
 	
-	if ( initConf(conffilename, &conf, error) == -1 ){
+	if ( initConf(conffilename, conf, error) == -1 ){
 		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}
 
-	if (initap(&ap, error, &conf, numsems) == -1) {
+	if (initap(&ap, error, conf, numsems) == -1) {
 		fputs(error,stderr);
 		exit(EXIT_FAILURE);
 	}
 	initializeServerProtocol(&ap); 
 
-	if (initsap(&sap, error, &conf) == -1){
+	if (initsap(&sap, error, conf) == -1){
 		freeap(&ap);
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "%s.\n", error);
 		exit(EXIT_FAILURE);
 	}
 
 	int sockfd;
-	if ( (sockfd = createPassiveSocket(&(conf.port))) == -1){
+	if ( (sockfd = createPassiveSocket(&(conf->port))) == -1){
 		freeap(&ap);
 		freesap(&sap);
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "Error setting up network.\n");

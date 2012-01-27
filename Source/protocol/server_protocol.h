@@ -29,6 +29,10 @@ int filelistAction(struct actionParameters *ap,
 int searchAction(struct actionParameters *ap,
 	union additionalActionParameters *aap);
 
+/*  browse your own share  */
+int browseAction(struct actionParameters *ap, 
+		union additionalActionParameters *aap);
+
 /* ? */
 int portAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap);

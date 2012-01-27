@@ -6,6 +6,7 @@
 #include "connection.h"
 #include "consoler.h"
 #include "util.h"
+#include "logger.h"
 
 struct protocol stdin_protocol = {
 	&passOnAction,
@@ -29,8 +30,8 @@ int initializeStdinProtocol(struct actionParameters *ap) {
 
 int passOnAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
-	return (consolemsg(ap->semid, aap->cap->outfd, "%s %s",
-				ap->comword.buf,ap->comline.buf)==-1)?-1:1;
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "passing through %s\n", (char *)ap->comword.buf);
+	return writef(aap->cap->serverfd, "%s %s\n",  ap->comword.buf, ap->comline.buf);
 }
 
 int stdin_showAction(struct actionParameters *ap, 
@@ -54,7 +55,8 @@ int stdin_resultsAction(struct actionParameters *ap,
 			size = stringBuilder("%dGB" , f->size);
 		}
 		if (consolemsg(ap->semid, aap->cap->outfd, "%s: %s, %s %d\n", f->filename, 
-					size, putIP(&f->ip), getPort(&f->ip)) == -1 ){
+					size, putIP((struct sockaddr *)&f->ip), 
+					getPort((struct sockaddr *)&f->ip)) == -1 ){
 			free(size);
 			return -1;
 		}

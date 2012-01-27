@@ -188,7 +188,6 @@ int processServerReply(struct actionParameters *ap,
 }
 
 int main (int argc, char * argv[]){
-	struct config conf;
 	char * conffilename="client.conf";
 	char serveripstr[1024] = "";
 	int server_port = 0;
@@ -236,38 +235,38 @@ int main (int argc, char * argv[]){
 		conffilename = argv[optind];
 
 	/* config Parser */
-	if (initConf(conffilename, &conf, error) == -1){
+	if (initConf(conffilename, conf, error) == -1){
 		fputs(error, stderr);
 		exit(EXIT_FAILURE);
 	}
 	/* Possibly override with values from command line */
 	if ( *serveripstr != '\0' ){
-		snprintf(portstr, 8, "%d", conf.port);
-		if ( (s = parseIP(serveripstr, &conf.ip, portstr, conf.forceIpVersion)) ){
+		snprintf(portstr, 8, "%d", conf->port);
+		if ( (s = parseIP(serveripstr, &conf->ip, portstr, conf->forceIpVersion)) ){
 			fprintf(stderr,"(main) serverip isn't a valid ip address%s\n",
  gai_strerror(s));
 			goto error;
 		} 
 	if (server_port)
-		conf.port = server_port;
-	  setPort(&conf.ip, conf.port);
+		conf->port = server_port;
+	  setPort(&conf->ip, conf->port);
 	}
 
-	if (initap(&ap, error, &conf, numsems) == -1) {
+	if (initap(&ap, error, conf, numsems) == -1) {
 		fputs(error, stderr);
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
 	initializeStdinProtocol(&ap);
 
-	if (initcap(&cap, error, &conf) == -1){
+	if (initcap(&cap, error, conf) == -1){
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "%s", error);
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
 
 	/* connecting to server. */
-	if ( (cap.serverfd = connectSocket(&(conf.ip), conf.port))  == -1 ){
+	if ( ( ap.comfd = cap.serverfd = connectSocket(&conf->ip, conf->port))  == -1 ){
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "error connecting to server\n");
 		shellReturn = EXIT_FAILURE;
 		goto error;
@@ -284,7 +283,7 @@ int main (int argc, char * argv[]){
 	}
 
 	/* inform the server of our passive port */
-	consolemsg(ap.semid, cap.outfd, "sending PORT %d\n", passport);
+	//consolemsg(ap.semid, cap.outfd, "sending PORT %d\n", passport);
 	if (-1 == writef( cap.serverfd, "PORT %d\n", passport)){
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "Couldn't send my port to server\n");
 		perror("");
@@ -328,8 +327,8 @@ int main (int argc, char * argv[]){
 		}
 
 		if(pollfds[0].revents & POLLIN) { /* Server greets us */
-			//gprintf(stderr, "server greets us\n");
-		 	switch (pSRret = processServerReply(&ap,&aap)){
+			pSRret = processServerReply(&ap,&aap);
+		 	switch (pSRret){
 				case 0: 
 					continue;
 				case -1:

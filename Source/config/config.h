@@ -29,6 +29,7 @@ struct config {
 		char             scheduler;
 		uint16_t         schedTimeSlice;
 };
+extern struct config * conf;
 
 void confDefaults(struct config *conf);
 int parseConfig (int conffd, struct config *conf);

@@ -38,9 +38,11 @@ void test_arrays(int shmid){
 	unsigned long * pi;
 	unsigned long counter;
 
+	unsigned int numints = 1024/sizeof(i);
+	printf("%ul", numints);
 	errno =0;
 	perror("errno test");
-	struct array *a = initArray(sizeof(i), sizeof(i) * 8, shmid);
+	struct array *a = initArray(sizeof(i), 1024, shmid);
 	if (!a){
 		perror("Array creation failed");
 		return;
@@ -96,7 +98,7 @@ int main(int argc, char * argv[]){
 	//test_buffers();
 	test_arrays(-1);
 	LOG("creating shared mem");
-	int shmid = shmget(IPC_KEY, 1024, IPC_CREAT|0666);
+	int shmid = shmget(IPC_KEY, 1024+sizeof(struct array), IPC_CREAT|0666);
 	fprintf(stderr, "%d\n", shmid);
 	test_arrays(shmid);
 	//test_semaphores();

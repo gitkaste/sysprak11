@@ -59,7 +59,7 @@ int processIncomingData(struct actionParameters *ap,
 			"closed from other side.\n");
 		return 0;
 	}
-	
+
 	/* read once - poll told us there is data */
 	/* tokenize all lines received and process them */
 	while ((gtfsret = getTokenFromStreamBuffer(&ap->combuf,

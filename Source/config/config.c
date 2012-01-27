@@ -22,6 +22,9 @@
 	(x_ < y_) ? x_ : y_; } while(0)
 */
 
+struct config configuration;
+struct config *conf = &configuration;
+
 /* unsafe macro, if you need safety use a function! */
 #define MIN(x,y) ( (x) < (y) ? (x) : (y) )
 #define LOG(x) do {puts(x); fflush(stdout);} while(0)
@@ -132,7 +135,7 @@ int parseConfig (int conffd, struct config *conf){
 					case 0:
 					case 4:
 					case 6:
-							g_forceipversion = conf->forceIpVersion = forceIpVersion;
+							conf->forceIpVersion = forceIpVersion;
 						break;
 					default:
 						fprintf(stderr,"(config parser) forceIpVersion can only be 0,4 or 6\n");
@@ -189,8 +192,6 @@ int parseConfig (int conffd, struct config *conf){
 			} 
 		}
 	}
-
-	g_loglevel = conf->loglevel;
 
 	/*** Lookup IPs for ip bc_ip and bc_broadcast ***/
 	if (retval != -1){

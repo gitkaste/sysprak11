@@ -11,11 +11,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "connection.h"
+#include "consoler.h"
 #include "tokenizer.h"
 #include "logger.h"
 #include "util.h"
-
-int g_forceipversion = 4;
 
 int createPassiveSocket4(uint16_t *port){
 	int sockfd;
@@ -54,7 +53,7 @@ int createPassiveSocket4(uint16_t *port){
 int createPassiveSocket6(uint16_t *port){
 	int sockfd;
 	int yes = 1;
-	if ( g_forceipversion == 6) {
+	if ( conf->forceIpVersion == 6) {
 		if ((sockfd = socket(AF_INET6,SOCK_STREAM|SOCK_NONBLOCK|IPV6_V6ONLY,0))<-1){
 			perror("couldn't attach to socket, damn");
 			return -1;
@@ -74,7 +73,7 @@ int createPassiveSocket6(uint16_t *port){
 	servaddr6.sin6_port = htons(*port);
 	servaddr6.sin6_family = AF_INET6;
 
-	if (bind(sockfd, (struct sockaddr *) &servaddr6, sizeof(servaddr6)) == -1){
+	if (bind(sockfd, (struct sockaddr *) &servaddr6, sizeof(servaddr6)) == -1 ){
 		perror("Couldn't bind to socket");
 		return -1;
 	}
@@ -92,7 +91,7 @@ int createPassiveSocket6(uint16_t *port){
 }
 
 int createPassiveSocket(uint16_t *port){
-	if (g_forceipversion == 4) 
+	if (conf->forceIpVersion == 4) 
 		return createPassiveSocket4(port);
 	else
 		return createPassiveSocket6(port);
@@ -111,8 +110,6 @@ int connectSocket(struct sockaddr *ip, uint16_t port){
 	else
 		((struct sockaddr_in6 *) ip)->sin6_port = htons(port);
 
-	fprintf(stderr, "\nconnecting to %p %s:%d\n", ip, putIP(ip), port);
-
 	if ( connect(sockfd, ip, (ip->sa_family == AF_INET)? sizeof (struct sockaddr_in):
 				sizeof(struct sockaddr_in6)) == -1){
 		perror("Failure to connect to peer");
@@ -130,15 +127,14 @@ int sendResult(int fd, struct actionParameters *ap,
 		struct serverActionParameters *sap){
 	unsigned long i = 0;
 	struct flEntry *fl;
-	char ip[127];
-	/* blatt7 is wrong about the comword alreay containing the search token */
+
 	int res = getTokenFromBuffer(&ap->comline, &ap->comword, "\n", "\r\n",NULL );
 	if (res == -1) return -3;
 
 	while (( fl = iterateArray(sap->filelist, &i))){
 		if ( strcasecmp( (char *) ap->comword.buf, fl->filename) ) continue;
-		if ( -1 == writef(fd, "%s\t%d\t%s\t%lu", getipstr(&fl->ip,ip,127), 
-					getPort(&fl->ip), fl->filename, fl->size))
+		if ( -1 == writef(fd, "%s\n%d\n%s\n%lu\n", putIP((struct sockaddr *)&fl->ip), 
+					getPort((struct sockaddr *) &fl->ip), fl->filename, fl->size))
 			return -3;
 
 	}
@@ -149,6 +145,7 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 	int counter, res;
 	struct flEntry file;
 	struct array * results2;
+	int num = 0;
 	char port[7];
 	char ipstr[56];
 	/* get a line */
@@ -159,63 +156,74 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 
 		/* get first word -> ip */
 		if (getTokenFromBuffer( &(ap->combuf), &(ap->comword), " ", "\t",NULL )==-1 )
-			return -1;
+			return -3;
 		strncpy(ipstr, (char *)ap->combuf.buf, 56);
 
 		/* get second word -> port */
 		if (getTokenFromBuffer(&ap->combuf, &ap->comword, " ", "\t",NULL ) == -1)
-			return -1;
+			return -3;
 		strncpy(port, (char *)ap->combuf.buf, 7);
 
-		if (parseIP(ipstr, &(file.ip), port, 0) == -1)
-			return -1;
+		if (parseIP(ipstr, (struct sockaddr *)&file.ip, port, 0) == -1)
+			return -3;
 
 		/* get third word -> filename */
 		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL ) == -1)
-			return -1;
+			return -3;
 		strcpy(file.filename, (char *)&ap->comline.buf);
 
 		/* get fourth word -> size */
 		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL ) == -1)
-			return -1;
+			return -3;
 		if ( (file.size = my_strtol((char *)ap->comword.buf)) < 0 || errno) return -3;
 
 		results2 = addArrayItem(results, &file);
 		if (results2) results = results2;
-		else return -3;
+		else {
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "couldn't resize Resultsarray");
+			return -3;
+		}
 
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "%d)\t%s\t(%d)", counter++,
 			 	file.filename, file.size);
+		fprintf(stderr,"%d ", num);
+		if (!(num %100)) fprintf(stderr,"\n");
+		num++;
 	}
-	return 2;
+	return num;
 }
 
 int recvFileList(int sfd, struct actionParameters *ap,
 		struct serverActionParameters *sap){
 	int res;
 	struct flEntry file;
-//	char port[7];
-//	struct sockaddr a;
 	struct array *fl2; 
+	memcpy(&file.ip,&ap->comip, sizeof(struct flEntry));
 
-///	snprintf( port, 7, "%d", ap->comport);
-///	if (parseIP(ap->comip, &a, port, 0) == -1)
-///		return -1;
-///
-	while ( ( res = getTokenFromStream( sfd, &ap->combuf, &ap->comline, "\n", "\r\n",NULL ) ) ){
+	while (( res = getTokenFromStream( sfd, &ap->combuf, &ap->comline, "\n", 
+			"\r\n",NULL ))){
 		if (res ==  -1) return -1;
-		strcpy(file.filename, (char *)&ap->comline.buf);
-		res = getTokenFromStream( sfd, &ap->combuf, &ap->comword, "\n", "\r\n",NULL );
-		if (res ==  -1) return -1;
-		errno =0;
-		if ( (file.size = strtol((char *)ap->comword.buf, NULL, 10)) < 0 || errno)  return -1;
+		strcpy(file.filename, (char *)ap->comline.buf);
+		flushBuf(&ap->comline);
+		if (getTokenFromStream( sfd, &ap->combuf, &ap->comline, "\n", "\r\n",NULL ) == -1 )
+			return -1;
+		file.size = my_strtol((char *)ap->comline.buf);
+		if ( errno || file.size < 0 ) {
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "problem converting file size for %s - %s\n", file.filename, ap->comline.buf);
+			continue;
+		}
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "%s - %lu\n", file.filename, file.size);
 
-		if (semWait(sap->shmid_filelist, SEM_FILELIST)) return -1;
+		if ( (res = semWait(ap->semid, SEM_FILELIST)))
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "(recvfile) can't get semaphore, %d", res);
 		fl2 = addArrayItem(sap->filelist, &file);
-		if (semSignal(sap->shmid_filelist, SEM_FILELIST)) return -1;
-
+		if ( (res = semSignal(ap->semid, SEM_FILELIST)))
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "(recvfile) can't release semaphore, %d", res);
 		if (fl2) sap->filelist = fl2;
-		else return -1;
+		else {
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "leaving the functions because realloc failed %d", fl2);
+			return -1;
+		}
 	}
 	return 1;
 }

@@ -25,6 +25,20 @@ int my_strtol(char * buf) {
 	return nr;
 }
 
+int iswhitespace(char * buf){
+	do{
+		switch(*buf){
+		case ' ':
+		case '\t':
+		case '\n':
+			continue;
+		default:
+			return 0;
+		}
+	} while (*(buf++));
+	return 1;
+}
+
 /* Tests an int x to be a power of two (and that alone) by computing 2's complement. */
 int isPowerOfTwo (unsigned int x) {
   return ((x != 0) && ((x & (~x + 1)) == x));
