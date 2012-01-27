@@ -128,6 +128,7 @@ int sendResult(int fd, struct actionParameters *ap,
 	unsigned long i = 0;
 	struct flEntry *fl;
 
+	fprintf(stderr, "mah\n");
 	int res = getTokenFromBuffer(&ap->comline, &ap->comword, "\n", "\r\n",NULL );
 	if (res == -1) return -3;
 
@@ -138,6 +139,7 @@ int sendResult(int fd, struct actionParameters *ap,
 			return -3;
 
 	}
+
 	return -2;
 }
 
@@ -150,17 +152,19 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 	char ipstr[56];
 	/* get a line */
 
+	fprintf(stderr, "muh\n");
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "print %s\n", ap->comline);
 	while ( ( res = getTokenFromStream( ap->comfd, &ap->combuf, &ap->comline, 
 					"\n", "\r\n",NULL ) ) ){
 		if (res ==  -1) return -3;
 
 		/* get first word -> ip */
-		if (getTokenFromBuffer( &(ap->combuf), &(ap->comword), " ", "\t",NULL )==-1 )
+		if (getTokenFromBuffer( &(ap->combuf), &(ap->comword), " ", "\n",NULL )==-1 )
 			return -3;
 		strncpy(ipstr, (char *)ap->combuf.buf, 56);
 
 		/* get second word -> port */
-		if (getTokenFromBuffer(&ap->combuf, &ap->comword, " ", "\t",NULL ) == -1)
+		if (getTokenFromBuffer(&ap->combuf, &ap->comword, " ", "\n",NULL ) == -1)
 			return -3;
 		strncpy(port, (char *)ap->combuf.buf, 7);
 
@@ -168,12 +172,12 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 			return -3;
 
 		/* get third word -> filename */
-		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL ) == -1)
+		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\n",NULL ) == -1)
 			return -3;
 		strcpy(file.filename, (char *)&ap->comline.buf);
 
 		/* get fourth word -> size */
-		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\t",NULL ) == -1)
+		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\n",NULL ) == -1)
 			return -3;
 		if ( (file.size = my_strtol((char *)ap->comword.buf)) < 0 || errno) return -3;
 

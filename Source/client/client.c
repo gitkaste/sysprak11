@@ -271,6 +271,12 @@ int main (int argc, char * argv[]){
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
+
+	socklen = sizeof(ap.comip);
+	if (getpeername(ap.comfd, &ap.comip, &socklen) == -1){
+		logmsg(ap.semid, ap.logfd, LOGLEVEL_WARN,
+				"Unable to retrieve information on incoming client connection.\n");
+	}
 	ap.usedres |= APRES_COMFD;
 
 	/* create a passive port to accept client connections. */
@@ -307,6 +313,7 @@ int main (int argc, char * argv[]){
 	pollfds[0].events = POLLIN;
 	pollfds[0].revents = 0;
 	pollfds[1].fd = cap.infd; /* communication with user */
+
 	pollfds[1].events = POLLIN;
 	pollfds[1].revents = 0;
 	pollfds[2].fd = passsock; /* communication with other client */
@@ -407,7 +414,7 @@ int main (int argc, char * argv[]){
 						"SIGINT": "SIGQUIT");
 					shellReturn = EXIT_SUCCESS;
 					break;
-				case SIGCHLD:
+				//Pase SIGCHLD:
 					logmsg(ap.semid, ap.logfd, LOGLEVEL_VERBOSE, 
 							"Child %d quit with status %d\n", fdsi.ssi_pid, fdsi.ssi_status);
 					break;

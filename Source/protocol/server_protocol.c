@@ -108,7 +108,6 @@ int quitAction(struct actionParameters *ap,
 	/* Returning 0: main-loop shall break and shouldn't accept any further commands */
 	close(ap->comfd);
 	return 0;
-
 }
 
 int searchAction(struct actionParameters *ap,
@@ -119,28 +118,38 @@ int searchAction(struct actionParameters *ap,
 
 	if (iswhitespace((char *)ap->comline.buf)) return 1;
 	switch (pid = fork()) {
+
 		case -1:
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
 					"(searchAction) Problem forking\n");
 			return -3;
+
 		case 0:
 			sockfd = createPassiveSocket(&port);
-			if (!sockfd) return -3;
+			if (sockfd<=0) return -3;
 			if ( -1 == getTokenFromBuffer(&ap->comline, &ap->comword, "\n","\r\n",NULL))
 				return -3;
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, 
 					"(searchAction) called upon to search for %s\n", ap->comword.buf);
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, 
 					"created port %d to send search results\n", port);
-			char *msg = stringBuilder("%d RESULT SOCKET %d\n", REP_COMMAND, port);
-			if ( -1 == reply(ap->comfd, ap->logfd, ap->semid, REP_WARN, msg)){
+			char *msg = stringBuilder("RESULT SOCKET %d\n", port);
+			if ( -1 == reply(ap->comfd, ap->logfd, ap->semid, REP_COMMAND, msg)){
 				free(msg);
 				return -3;
 			}
 			free(msg);
+
+			setFdBlocking(sockfd);
+			socklen_t addrlen = sizeof(ap->comip);
+			if ((ap->comfd = accept(sockfd, &ap->comip, &addrlen)) == -1 ) {
+				logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
+						"(searchAction) Problem accepting conneciton\n");
+				return -3;
+			}
 			return  (sendResult(sockfd, ap, aap->sap) == 1) ? -3 : -2;
+
 		default:
-			close(sockfd);
 			return 1;
 	}
 }

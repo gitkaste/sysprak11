@@ -42,7 +42,7 @@ int client_resultAction(struct actionParameters *ap,
 	pid_t child;
 	int sockfd, num;
 
-	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN,
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE,
 			"(client_resultAction) started %s\n", ap->comword.buf);
 	switch(child = fork()){
 		case -1:
@@ -52,23 +52,24 @@ int client_resultAction(struct actionParameters *ap,
 		case 0:
 			close(aap->cap->serverfd);
 
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "print %s\n", ap->comline);
 			/* Command is RESULT (already stripped off) SOCKET port */
-			if ( 1 != getTokenFromStreamBuffer( &ap->comline, &ap->comword,
-					"SOCKET", " ", "\t", NULL) ) {
+			if ( ( 1 != getTokenFromBuffer( &ap->comline, &ap->comword,
+					"SOCKET", " ", "\t", NULL) )) {
 				logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
-					"(client_resultAction) can't fork.\n", ap->comword.buf);
+					"(client_resultAction) trouble parsing token %s.\n", ap->comline.buf);
 				return -3;
 			}
-
 			int port = my_strtol( (char *) ap->comword.buf);
 			if ( errno || port<0 || port > 65536 ) {
 			 	logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
-				"(client_resultAction) get port.\n", ap->comword.buf);
+				"(client_resultAction) failed to get port. %s %d\n", ap->comline.buf);
 				return -3;
 				}
+
 			if ( -1 == (sockfd = connectSocket(&ap->comip, port))){
 			 	logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
-				"(client_resultAction) can't connect.\n", ap->comword.buf);
+				"(client_resultAction) can't connect. %s %d\n", putIP(&ap->comip), port);
 				return -3;
 				}
 			/*BUGBUG shouldn't we clear the results array before getting new ones?*/	
@@ -77,15 +78,15 @@ int client_resultAction(struct actionParameters *ap,
 					consolemsg(ap->semid, aap->cap->outfd, "Didn't find any results.\n");
 					break;
 				case -3:
+					consolemsg(ap->semid, aap->cap->outfd, "Search failed.\n");
 					logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
-						"(client_resultAction) recvResult failed");
-					break;
+						"(client_resultAction) recvResult failed\n");
+					return -3;
 				default:
 					consolemsg(ap->semid, aap->cap->outfd, "Found %d results.\n", num);
 					break;
 			}
-
-			consolemsg(ap->semid, aap->cap->outfd, "Found %d results for your search.\n", num);
+			return -2;
 		default:
 			/* r for resultAction */
 			addChildProcess(aap->cap->cpa, 'r', child);
