@@ -144,10 +144,12 @@ int searchAction(struct actionParameters *ap,
 			socklen_t addrlen = sizeof(ap->comip);
 			if ((ap->comfd = accept(sockfd, &ap->comip, &addrlen)) == -1 ) {
 				logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
-						"(searchAction) Problem accepting conneciton\n");
+						"(searchAction) Problem accepting connection\n");
 				return -3;
 			}
-			return  (sendResult(sockfd, ap, aap->sap) == 1) ? -3 : -2;
+			int ret = (sendResult(comfd, ap, aap->sap);
+			close (comfd);
+			return (ret == -1)? -3: -2;
 
 		default:
 			return 1;

@@ -129,15 +129,12 @@ int sendResult(int fd, struct actionParameters *ap,
 	struct flEntry *fl;
 
 	fprintf(stderr, "mah\n");
-	int res = getTokenFromBuffer(&ap->comline, &ap->comword, "\n", "\r\n",NULL );
-	if (res == -1) return -3;
-
 	while (( fl = iterateArray(sap->filelist, &i))){
-		if ( strcasecmp( (char *) ap->comword.buf, fl->filename) ) continue;
+		fprintf(stderr, "%s\n", fl->filename);
+		if ( -1 == searchString((char *) ap->comword.buf, fl->filename) ) continue;
 		if ( -1 == writef(fd, "%s\n%d\n%s\n%lu\n", putIP((struct sockaddr *)&fl->ip), 
 					getPort((struct sockaddr *) &fl->ip), fl->filename, fl->size))
-			return -3;
-
+		return -3;
 	}
 
 	return -2;
@@ -175,6 +172,8 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\n",NULL ) == -1)
 			return -3;
 		strcpy(file.filename, (char *)&ap->comline.buf);
+
+		fprintf(stderr, "%s\n", file.filename);
 
 		/* get fourth word -> size */
 		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\n",NULL ) == -1)
