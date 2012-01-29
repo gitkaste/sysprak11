@@ -1,3 +1,4 @@
+#define _GNU_SOURCE 1
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -128,57 +129,59 @@ int sendResult(int fd, struct actionParameters *ap,
 	unsigned long i = 0;
 	struct flEntry *fl;
 
-	fprintf(stderr, "mah\n");
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG,
+		 "(sendResult) entering, %d entries to search.\n", sap->filelist->itemcount);
 	while (( fl = iterateArray(sap->filelist, &i))){
-		fprintf(stderr, "%s\n", fl->filename);
-		if ( -1 == searchString((char *) ap->comword.buf, fl->filename) ) continue;
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "(sendResult) loop.\n");
+		if ( !strcasestr(fl->filename, (char *)ap->comword.buf) ) continue;
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "sending %s\t%d\t%s\t%lu\n", 
+				putIP((struct sockaddr *)&fl->ip), getPort((struct sockaddr *) &fl->ip), 
+				fl->filename, fl->size);
 		if ( -1 == writef(fd, "%s\n%d\n%s\n%lu\n", putIP((struct sockaddr *)&fl->ip), 
 					getPort((struct sockaddr *) &fl->ip), fl->filename, fl->size))
-		return -3;
+			return-3;
 	}
-
 	return -2;
 }
 
 int recvResult(int fd, struct actionParameters *ap,struct array * results){
-	int counter, res;
-	struct flEntry file;
+	int counter=0, res;
+	struct flEntry file;///, *f;
 	struct array * results2;
-	int num = 0;
 	char port[7];
 	char ipstr[56];
+	long unsigned int i=0;
 	/* get a line */
 
-	fprintf(stderr, "muh\n");
-	logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "print %s\n", ap->comline);
-	while ( ( res = getTokenFromStream( ap->comfd, &ap->combuf, &ap->comline, 
-					"\n", "\r\n",NULL ) ) ){
-		if (res ==  -1) return -3;
-
+	flushBuf(&ap->combuf);
+	while (( res = getTokenFromStream( ap->comfd, &ap->combuf, &ap->comline, 
+					"\n", "\r\n",NULL ))){
 		/* get first word -> ip */
-		if (getTokenFromBuffer( &(ap->combuf), &(ap->comword), " ", "\n",NULL )==-1 )
-			return -3;
-		strncpy(ipstr, (char *)ap->combuf.buf, 56);
+		strncpy(ipstr, (char *)ap->comline.buf, 56);
+		if (res ==  -1) return -3;
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "(recvResult) ip: %s\n", ipstr);
 
 		/* get second word -> port */
-		if (getTokenFromBuffer(&ap->combuf, &ap->comword, " ", "\n",NULL ) == -1)
+		if (getTokenFromBuffer(&ap->combuf, &ap->comline, " ", "\n",NULL ) == -1)
 			return -3;
-		strncpy(port, (char *)ap->combuf.buf, 7);
+		strncpy(port, (char *)ap->comline.buf, 7);
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "(recvResult) port: %s\n", port);
 
 		if (parseIP(ipstr, (struct sockaddr *)&file.ip, port, 0) == -1)
 			return -3;
 
 		/* get third word -> filename */
-		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\n",NULL ) == -1)
+		if (getTokenFromBuffer( &ap->combuf, &ap->comline, " ", "\n",NULL ) == -1)
 			return -3;
-		strcpy(file.filename, (char *)&ap->comline.buf);
-
-		fprintf(stderr, "%s\n", file.filename);
+		strcpy(file.filename, (char *)ap->comline.buf);
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "(recvResult) filename: %s\n",
+			 	file.filename);
 
 		/* get fourth word -> size */
-		if (getTokenFromBuffer( &ap->combuf, &ap->comword, " ", "\n",NULL ) == -1)
+		if (getTokenFromBuffer( &ap->combuf, &ap->comline, " ", "\n",NULL ) == -1)
 			return -3;
-		if ( (file.size = my_strtol((char *)ap->comword.buf)) < 0 || errno) return -3;
+		if ( (file.size = my_strtol((char *)ap->comline.buf)) < 0 || errno) return -3;
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "(recvResult) size: %d\n", file.size);
 
 		results2 = addArrayItem(results, &file);
 		if (results2) results = results2;
@@ -186,14 +189,21 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "couldn't resize Resultsarray");
 			return -3;
 		}
-
-		logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "%d)\t%s\t(%d)", counter++,
-			 	file.filename, file.size);
-		fprintf(stderr,"%d ", num);
-		if (!(num %100)) fprintf(stderr,"\n");
-		num++;
+		i=0;
+//		while ( (f = iterateArray(results, &i)) ){
+//			logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "intermed %s: %d, %s %d\n", f->filename, 
+//						f->size, putIP((struct sockaddr *)&f->ip), 
+//						getPort((struct sockaddr *)&f->ip));
+//			counter++;
+//		}
 	}
-	return num;
+	i=0;
+//	while ( (f = iterateArray(results, &i)) ){
+//		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "after copying %s: %d, %s %d\n", f->filename, 
+//					f->size, putIP((struct sockaddr *)&f->ip), 
+//					getPort((struct sockaddr *)&f->ip));
+//	}	
+	return counter;
 }
 
 int recvFileList(int sfd, struct actionParameters *ap,
@@ -201,7 +211,12 @@ int recvFileList(int sfd, struct actionParameters *ap,
 	int res;
 	struct flEntry file;
 	struct array *fl2; 
-	memcpy(&file.ip,&ap->comip, sizeof(struct flEntry));
+
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "in recvFileList %p %p\n", ap, &ap->comip);
+	// BUGBUG This segfaults!
+	memmove(&file.ip,&ap->comip, sizeof(struct flEntry));
+
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "in loop%ul\n\n", sap->filelist->itemcount);
 
 	while (( res = getTokenFromStream( sfd, &ap->combuf, &ap->comline, "\n", 
 			"\r\n",NULL ))){
@@ -215,19 +230,22 @@ int recvFileList(int sfd, struct actionParameters *ap,
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "problem converting file size for %s - %s\n", file.filename, ap->comline.buf);
 			continue;
 		}
-		logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "%s - %lu\n", file.filename, file.size);
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "recvFileList: %s - %lu\n", file.filename, file.size);
 
 		if ( (res = semWait(ap->semid, SEM_FILELIST)))
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "(recvfile) can't get semaphore, %d", res);
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "in loop%ul\n\n", sap->filelist->itemcount);
 		fl2 = addArrayItem(sap->filelist, &file);
 		if ( (res = semSignal(ap->semid, SEM_FILELIST)))
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "(recvfile) can't release semaphore, %d", res);
 		if (fl2) sap->filelist = fl2;
 		else {
-			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "leaving the functions because realloc failed %d", fl2);
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "leaving the functions because realloc failed %d", fl2);
 			return -1;
 		}
 	}
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "out of loop %ul\n\n", sap->filelist->itemcount);
+	
 	return 1;
 }
 

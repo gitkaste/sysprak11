@@ -31,7 +31,7 @@ int initializeStdinProtocol(struct actionParameters *ap) {
 int passOnAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
 	logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "passing through %s\n", (char *)ap->comword.buf);
-	return writef(aap->cap->serverfd, "%s %s\n",  ap->comword.buf, ap->comline.buf);
+	return (writef(aap->cap->serverfd, "%s %s\n",  ap->comword.buf, ap->comline.buf)<1)? -1:1;
 }
 
 int stdin_showAction(struct actionParameters *ap, 
@@ -42,9 +42,11 @@ int stdin_showAction(struct actionParameters *ap,
 int stdin_resultsAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
 	struct flEntry *f;
-	long unsigned int i;
+	long unsigned int i =0;
 	char * size;
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, "(resultsAction) start, should have %d results\n", aap->cap->results->itemcount);
 	while ( (f = iterateArray(aap->cap->results, &i)) ){
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "should print %s\n", f->filename);
 		if (!(f->size / 1024)){
 			size = stringBuilder("%dB" , f->size);
 		} else if (!(f->size / 1024 * 1024)){
@@ -54,7 +56,7 @@ int stdin_resultsAction(struct actionParameters *ap,
 		} else if (!(f->size / 1024 * 1024 * 1024 * 1024)){
 			size = stringBuilder("%dGB" , f->size);
 		}
-		if (consolemsg(ap->semid, aap->cap->outfd, "%s: %s, %s %d\n", f->filename, 
+		if (consolemsg(ap->semid, aap->cap->outfd, "%s: %d, %s %d\n", f->filename, 
 					size, putIP((struct sockaddr *)&f->ip), 
 					getPort((struct sockaddr *)&f->ip)) == -1 ){
 			free(size);

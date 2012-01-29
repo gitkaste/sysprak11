@@ -31,7 +31,7 @@ int initializeClientProtocol(struct actionParameters *ap){
 int client_unknownCommandAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
 	consolemsg(ap->semid, aap->cap->outfd, 
-		"Command \"%s\" not understood.\n", ap->comword.buf);
+		"(client) Command '\"%s\"' not understood.\n", ap->comword.buf);
 	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN,
 		"Command \"%s\" not understood.\n", ap->comword.buf);
 	return 1;
@@ -72,7 +72,7 @@ int client_resultAction(struct actionParameters *ap,
 				"(client_resultAction) can't connect. %s %d\n", putIP(&ap->comip), port);
 				return -3;
 				}
-			/*BUGBUG shouldn't we clear the results array before getting new ones?*/	
+			clearArray(aap->cap->results);
 			switch( (num = recvResult(sockfd, ap,aap->cap->results) )){
 				case 0:
 					consolemsg(ap->semid, aap->cap->outfd, "Didn't find any results.\n");

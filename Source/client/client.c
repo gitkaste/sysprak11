@@ -366,9 +366,7 @@ int main (int argc, char * argv[]){
 			}
 			while ((gtfsRet = getTokenFromStreamBuffer(&ap.combuf,
 				&ap.comline, "\r\n", "\n", (char *)NULL)) > 0) {
-				//consolemsg(ap.semid, aap.cap->outfd, "found %s",ap.comline.buf);
-				fflush(stdout);
-				switch(processCommand(&ap, &aap)){
+				switch(rtbRet = processCommand(&ap, &aap)){
 					case -1:
 						shellReturn = EXIT_FAILURE;
 						break;
@@ -376,11 +374,12 @@ int main (int argc, char * argv[]){
 						shellReturn = EXIT_SUCCESS;
 						break;
 					case 1:
+					case 2:
 						continue;
 						break;
 					default:
-						consolemsg(ap.semid, aap.cap->outfd, "command %s not understood", 
-							ap.comline.buf);
+						consolemsg(ap.semid, aap.cap->outfd, "command $%s$ not understood, %d\n",
+							ap.comline.buf, rtbRet);
 				}
 			}
 		} else if(pollfds[2].revents & POLLIN) { /* Client connection incoming */

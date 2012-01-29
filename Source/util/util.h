@@ -74,6 +74,7 @@ void freeArray(struct array *a);
 struct array *addArrayItem(struct array *a, void *item);
 /* deletes an item (doesn't resize) */
 int remArrayItem(struct array *a, unsigned long num);
+void clearArray(struct array *a);
 /* works like [] for c arrays */
 void *getArrayItem(struct array *a, unsigned long num);
 /* an iterator, to be used like int i; while(iterateArray(a,&i)) foo */
@@ -124,9 +125,9 @@ void semClose(int semgroupid);
  * Represents a file in the network.  */
 struct flEntry {
 	/* sockaddr contains port information as well */
-	struct sockaddr_storage ip;
 	char filename[FILENAME_MAX];
 	unsigned long size;
+	struct sockaddr_storage ip;
 };
 
 /* set a file descriptor fd non blocking

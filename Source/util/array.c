@@ -32,6 +32,11 @@ void freeArray(struct array *a){
 	}
 }
 
+void clearArray(struct array *a){
+	a->itemcount = 0;
+	memset(a->mem, 0, a->memsize);
+}
+
 struct array *addArrayItem (struct array *a, void *item){
 	if (a->memsize <= a->itemsize * (a->itemcount + 1)){
 		if (a->shmid == -1){
@@ -42,17 +47,21 @@ struct array *addArrayItem (struct array *a, void *item){
 			}else{
 				//the allocation was moved to accomodate the new size
 				if (newmem != (char *)a){
+					fprintf(stderr, "newmem \n");
 					a = (struct array *)newmem;
 					a->mem = a + sizeof(struct array);
 				}
-				a->memsize = a->itemsize * (a->itemcount + 10);
+				a->memsize += a->itemsize * 10;
 			}
 		} else {
 			/* In case the shmem segment is too small, there is nothing we can do */
 			return NULL;
 		}
 	}	
-	memmove((char *)a->mem + (a->itemcount) * a->itemsize, item, a->itemsize); 
+	struct flEntry *b = (struct flEntry *)a->mem+(a->itemcount * a->itemsize), *c = (struct flEntry *)item;
+	fprintf(stderr, "%p itemcount %lu: oldfilename %s size:%lu\n\r", a->mem, a->itemcount, c->filename, c->size);
+	memcpy((char *)a->mem + (a->itemcount * a->itemsize), item, a->itemsize); 
+	fprintf(stderr, "%p itemcount %lu: newfilename %ssize%lu:\n\r", a->mem, a->itemcount,b->filename, b->size);
 	a->itemcount++;
 	return a;
 }
@@ -66,8 +75,10 @@ int remArrayItem (struct array *a, unsigned long num){
 }
 
 void *getArrayItem(struct array *a, unsigned long num) {
-	if (num > a->itemcount-1) return NULL;
-	return (char *)a->mem+ num * a->itemsize;
+	if (!a->itemcount || num > a->itemcount-1) {
+		return NULL;
+	}
+	return (char *)a->mem+ (num-1) * a->itemsize;
 }
 
 void *iterateArray(struct array *a, unsigned long *i) {

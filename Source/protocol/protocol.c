@@ -90,8 +90,8 @@ int processCommand(struct actionParameters *ap,
 	logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE,
 		"COMRECV: '%.*s'\n", ap->comline.buflen, ap->comline.buf);
 	/* get the first word of the line */
-	gtfbret = getTokenFromBuffer(&ap->comline, &ap->comword, " ", "\t", 
-			(char *)NULL);
+	gtfbret = getTokenFromBuffer(&ap->comline, &ap->comword," ","\t",(char *)NULL);
+
 	if (gtfbret < 0) {
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "FATAL: "
 			"getTokenFromBuffer() failed in processCommand.\n");

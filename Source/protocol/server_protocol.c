@@ -65,7 +65,7 @@ int unknownCommandAction(struct actionParameters *ap,
 	char *msg;
 	int ret = 1;
 	if (strcasecmp((char *)ap->comline.buf, "")){
-		msg = stringBuilder("Command \"%s\" not understood.\n",
+		msg = stringBuilder("(server) Command \"%s\" not understood.\n",
 			ap->comline.buf);
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, 
 			"fuck unknown command \"%s\"", ap->comword.buf);
@@ -147,8 +147,8 @@ int searchAction(struct actionParameters *ap,
 						"(searchAction) Problem accepting connection\n");
 				return -3;
 			}
-			int ret = (sendResult(comfd, ap, aap->sap);
-			close (comfd);
+			int ret = (sendResult(ap->comfd, ap, aap->sap));
+			close (ap->comfd);
 			return (ret == -1)? -3: -2;
 
 		default:
@@ -195,6 +195,8 @@ int filelistAction(struct actionParameters *ap,
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_VERBOSE, 
 					"(filelistAction) got one!\n");
 			ap->comport = getPort(&ap->comip);
+			logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, 
+					"(filelistAction) going into recvFileList!\n");
 			int	ret = recvFileList(ap->comfd, ap, aap->sap);
 			close(ap->comfd);
 			return  ( ret == 1 ) ? -2 : -3;

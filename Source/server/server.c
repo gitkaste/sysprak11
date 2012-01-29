@@ -238,7 +238,8 @@ int main (int argc, char * argv[]){
 			switch(fdsi.ssi_signo){
 				case SIGINT:
 				case SIGQUIT:
-					fprintf(stderr,"Yeah i found %s",(fdsi.ssi_signo==SIGINT) ?"SIGINT": "SIGQUIT");
+					fprintf(stderr,"Yeah i found %s\n",
+							(fdsi.ssi_signo==SIGINT) ?"SIGINT": "SIGQUIT");
 					shellReturn = EXIT_SUCCESS;
 					break;
 				case SIGCHLD:
