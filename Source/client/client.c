@@ -36,8 +36,7 @@ void freecap(struct clientActionParameters* cap){
 	if (cap->usedres & CAPRES_CPA)          freeArray(cap->cpa);
 }
 
-int initcap (struct clientActionParameters* cap, char error[256],
-	 	struct config * conf){
+int initcap (struct clientActionParameters* cap, char error[256]){
 	int toConsoler[2], fromConsoler[2];
 	int size = conf->shm_size;
 
@@ -46,13 +45,12 @@ int initcap (struct clientActionParameters* cap, char error[256],
 	cap->usedres = CAPRES_RESULTSSHMID;
 
 	size -= sizeof(struct array);
-	if (!(cap->results = initArray(sizeof(struct flEntry), size, 
-					cap->shmid_results)))
+	if (!(cap->results = initArray(sizeof(struct flEntry), size, cap->shmid_results)))
 		goto error;
 	cap->usedres |= CAPRES_RESULTS;
 
 	if (!(cap->cpa = initArray(sizeof(struct processChild), 
-					64*sizeof(struct processChild), cap->shmid_results)))
+					64*sizeof(struct processChild), -1)))
 		goto error;
 	cap->usedres |= CAPRES_CPA;
 
@@ -202,10 +200,10 @@ int main (int argc, char * argv[]){
 	uint16_t passport;
 	int opt, passsock, s;
 #define EXIT_NO (EXIT_FAILURE * 2+3)
-	int pSRret, SRret, shellReturn=EXIT_NO, gtfsRet, rtbRet;
+	int huRet, pSRret, SRret, shellReturn=EXIT_NO, gtfsRet, rtbRet;
 	pid_t uploadpid;
-	socklen_t socklen = sizeof(struct sockaddr_in);
-	struct sockaddr_in peer_addr;
+	socklen_t socklen = sizeof(struct sockaddr_storage);
+	struct sockaddr_storage peer_addr;
   struct signalfd_siginfo fdsi;
   struct pollfd pollfds[3];
 
@@ -235,45 +233,47 @@ int main (int argc, char * argv[]){
 		conffilename = argv[optind];
 
 	/* config Parser */
-	if (initConf(conffilename, conf, error) == -1){
+	if (initConf(conffilename,  error) == -1){
 		fputs(error, stderr);
 		exit(EXIT_FAILURE);
 	}
+	//writeConfig(1);
 	/* Possibly override with values from command line */
 	if ( *serveripstr != '\0' ){
 		snprintf(portstr, 8, "%d", conf->port);
-		if ( (s = parseIP(serveripstr, &conf->ip, portstr, conf->forceIpVersion)) ){
+		if ( (s = parseIP(serveripstr, (struct sockaddr *)&conf->ip, portstr, 
+						conf->forceIpVersion)) ){
 			fprintf(stderr,"(main) serverip isn't a valid ip address%s\n",
- gai_strerror(s));
+		gai_strerror(s));
 			goto error;
 		} 
 	if (server_port)
 		conf->port = server_port;
-	  setPort(&conf->ip, conf->port);
+	  setPort((struct sockaddr *)&conf->ip, conf->port);
 	}
 
-	if (initap(&ap, error, conf, numsems) == -1) {
+	if (initap(&ap, error, numsems) == -1) {
 		fputs(error, stderr);
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
 	initializeStdinProtocol(&ap);
 
-	if (initcap(&cap, error, conf) == -1){
+	if (initcap(&cap, error) == -1){
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "%s", error);
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
 
 	/* connecting to server. */
-	if ( ( ap.comfd = cap.serverfd = connectSocket(&conf->ip, conf->port))  == -1 ){
+	if ( ( ap.comfd = cap.serverfd = connectSocket((struct sockaddr *)&conf->ip, conf->port))  == -1 ){
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "error connecting to server\n");
 		shellReturn = EXIT_FAILURE;
 		goto error;
 	}
 
 	socklen = sizeof(ap.comip);
-	if (getpeername(ap.comfd, &ap.comip, &socklen) == -1){
+	if (getpeername(ap.comfd, (struct sockaddr *) &ap.comip, &socklen) == -1){
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_WARN,
 				"Unable to retrieve information on incoming client connection.\n");
 	}
@@ -385,16 +385,18 @@ int main (int argc, char * argv[]){
 		} else if(pollfds[2].revents & POLLIN) { /* Client connection incoming */
 			int uploadfd = accept(passsock, (struct sockaddr *) &peer_addr, &socklen);
 			if (!uploadfd) return -1;
+			logmsg(ap.semid, ap.logfd, LOGLEVEL_WARN, "%d %d\n", uploadfd, passsock);
 			switch(uploadpid = fork()){
 			case -1:
 				close(uploadfd);
 				perror("(client main) Problem forking when accepting client conn");
 				goto error;
 			case 0:
-				consolemsg(ap.semid, cap.outfd, "closing");
-
 				close(passsock);
-				_exit( handleUpload(uploadfd,cap.outfd,&ap) );
+				huRet =  handleUpload(uploadfd, cap.outfd, &ap);
+				huRet = (huRet == -2)? EXIT_SUCCESS: EXIT_FAILURE;
+				close(uploadfd);
+				_exit(huRet);
 			default:
 				/* u for upload */
 				addChildProcess(cap.cpa, 'u', cap.conpid);

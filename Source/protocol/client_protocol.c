@@ -84,7 +84,6 @@ int client_resultAction(struct actionParameters *ap,
 					return -3;
 				default:
 					consolemsg(ap->semid, aap->cap->outfd, "Found %d results.\n", num);
-					break;
 			}
 			return -2;
 		default:

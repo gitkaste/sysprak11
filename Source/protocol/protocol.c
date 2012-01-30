@@ -114,8 +114,7 @@ action validateToken(struct buffer *token, struct protocol *prot) {
 
 /* This function needs to return gracefully! Either it succeeds completely
  * or rolls back any and every open ressource */
-int initap(struct actionParameters *ap, char emsg[256], struct config *conf, 
-		int semcount){
+int initap(struct actionParameters *ap, char emsg[256], int semcount){
 	int logfds[2];
 	int logfilefd;
 	sigset_t mask;

@@ -62,7 +62,7 @@ struct actionParameters { /* elwms */
 	/* This is the protocol used on comfd and its buffers */
 	struct protocol *prot;
 	/* ip of communication partner ('peer') */
-	struct sockaddr comip;
+	struct sockaddr_storage comip;
 	uint16_t comport;
 };
 
@@ -171,8 +171,7 @@ action validateToken(struct buffer *token, struct protocol *prot);
  * sends a reply to the client (including a numerical code)
 */
 int reply(int comfd, int logfd, int semid, int code, const char *msg);
-int initap(struct actionParameters *ap, char error[256], struct config *conf,
-		int semcount);
+int initap(struct actionParameters *ap, char error[256], int semcount);
 void freeap(struct actionParameters *ap);
 int recvFileList(int sfd, struct actionParameters *ap,
 		struct serverActionParameters *sap);

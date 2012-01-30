@@ -94,12 +94,15 @@ void test_semaphores(){
 	semSignal(semid, 1);
 }
 
+
+
 int main(int argc, char * argv[]){
-	//test_buffers();
-	test_arrays(-1);
-	LOG("creating shared mem");
-	int shmid = shmget(IPC_KEY, 1024+sizeof(struct array), IPC_CREAT|0666);
-	fprintf(stderr, "%d\n", shmid);
-	test_arrays(shmid);
-	//test_semaphores();
+//	test_buffers();
+//	test_arrays(-1);
+//	LOG("creating shared mem");
+//	int shmid = shmget(IPC_KEY, 1024+sizeof(struct array), IPC_CREAT|0666);
+//	fprintf(stderr, "%d\n", shmid);
+//	test_arrays(shmid);
+//	test_semaphores();
+	struct sockaddr a;
 }

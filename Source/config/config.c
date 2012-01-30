@@ -30,9 +30,9 @@ struct config *conf = &configuration;
 #define LOG(x) do {puts(x); fflush(stdout);} while(0)
 
 /* supposed to init the defaults */
-void confDefaults(struct config *conf){
+void confDefaults(){
 	/* This shall not fail */
-	parseIP("0.0.0.0", &(conf->ip), NULL, 4);
+	parseIP("0.0.0.0", (struct sockaddr *)&(conf->ip), NULL, 4);
 	conf->port = 4444;
 	strcpy(conf->logfile, "tmp/sysprak/server.log");
 	conf->loglevel = 100;
@@ -44,16 +44,16 @@ void confDefaults(struct config *conf){
 	strcpy(conf->workdir, "tmp/sysprak");
 	strcpy(conf->networkDumpLogFile, "tmp/sysprak/serverDump.log");
 	/* BUGBUG read from eth0 or something this is crap */
-	parseIP("127.0.0.1", &(conf->bc_ip), NULL, 4);
+	parseIP("127.0.0.1", (struct sockaddr *)&(conf->bc_ip), NULL, 4);
 	conf->bc_port = 4445;
 	conf->scheduler = SCHEDULER_RR;
-	parseIP("127.0.0.1", &(conf->bc_broadcast), NULL, 4);
+	parseIP("127.0.0.1", (struct sockaddr *)&(conf->bc_broadcast), NULL, 4);
 	conf->bc_interval = 10;
 	conf->schedTimeSlice = 3;
 }
 
 /* fills the conf with the values from the conf file */
-int parseConfig (int conffd, struct config *conf){
+int parseConfig (int conffd){
 	struct buffer key;
 	struct buffer value;
 	struct buffer line;
@@ -197,15 +197,15 @@ int parseConfig (int conffd, struct config *conf){
 	if (retval != -1){
 		snprintf(portstr, 11, "%d", conf->bc_port);
 		if ( strcmp(ipstr, UNDEF) &&
-				(s = parseIP(ipstr, &conf->ip, NULL, conf->forceIpVersion)) ){
+				(s = parseIP(ipstr, (struct sockaddr *)&conf->ip, NULL, conf->forceIpVersion)) ){
 			fprintf(stderr,"(config parser) ip isn't a valid ip address%s\n", gai_strerror(s));
 			retval = -1;
 		} else if ( strcmp(bc_ipstr, UNDEF) && 
-			 	(s = parseIP(bc_ipstr, &conf->bc_ip, portstr, conf->forceIpVersion))){
+			 	(s = parseIP(bc_ipstr, (struct sockaddr *)&conf->bc_ip, portstr, conf->forceIpVersion))){
 			fprintf(stderr,"(config parser) bc_ip isn't set or a valid ip address%s\n", gai_strerror(s));
 			retval = -1;
 		} else if ( strcmp(bc_broadcaststr, UNDEF) &&
-					(s = parseIP(bc_broadcaststr, &conf->bc_broadcast, NULL, conf->forceIpVersion) )){
+					(s = parseIP(bc_broadcaststr, (struct sockaddr *)&conf->bc_broadcast, NULL, conf->forceIpVersion) )){
 			fprintf(stderr,"(config parser) bc_broadcast isn't set or a valid ip address%s\n", gai_strerror(s));
 			retval = -1;
 		}
@@ -218,14 +218,14 @@ int parseConfig (int conffd, struct config *conf){
 }
 
 /***** Setup CONFIG *****/
-int initConf(char * conffilename, struct config *conf, char error[256]){
+int initConf(char * conffilename, char error[256]){
 	int conffd = open(conffilename, O_RDONLY);
 	if ( conffd == -1) {
 		sperror("Error opening config file:\n", error, 256);
 		return -1;
 	}
 	confDefaults(conf);
-	if ( parseConfig(conffd, conf) == -1 ){
+	if ( parseConfig(conffd) == -1 ){
 		close(conffd);
 		strncpy(error, "Your config has errors, please fix them", 256);
 		return -1;
@@ -235,10 +235,10 @@ int initConf(char * conffilename, struct config *conf, char error[256]){
 	return 1;
 }
 
-void writeConfig (int fd, struct config *conf){
+void writeConfig (int fd){
 	char ip[127];
 	/* There is no way to enter a flawed ip in our system */
-	if (!getipstr(&(conf->ip), ip, 127))
+	if (!getipstr((struct sockaddr *)&(conf->ip), ip, 127))
 		writef(fd, "problem converting ip conf->ip");
 	else
 		writef(fd, "Using config:\n\tip:\t\t\t%s\n\tport:\t\t\t%d\n",ip, conf->port);
@@ -248,11 +248,11 @@ void writeConfig (int fd, struct config *conf){
 	writef(fd, "\tshare:\t\t\t%s\n\tshm_size:\t\t%d\n", conf->share, conf->shm_size);
 	writef(fd, "\tworkdir:\t\t%s\n", conf->workdir);
 	writef(fd, "\tforceIpVersion:\t\t%d\n", conf->forceIpVersion);
-	if (!getipstr(&(conf->bc_ip), ip, 127))
+	if (!getipstr((struct sockaddr *)&(conf->bc_ip), ip, 127))
 		writef(fd, "problem converting ip conf->ip");
 	else
 		writef(fd, "\tbc_ip:\t\t\t%s\n\tbc_port:\t\t%d\n", ip, conf->bc_port);
-	if (!getipstr(&(conf->bc_broadcast), ip, 127))
+	if (!getipstr((struct sockaddr *)&(conf->bc_broadcast), ip, 127))
 		writef(fd, "problem converting ip conf->ip");
 	else
 		writef(fd, "\tbc_broadcast:\t\t%s\n", ip);

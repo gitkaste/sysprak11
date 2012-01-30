@@ -12,7 +12,7 @@
  * configuration structure for _both_, server and client (merged). */
 struct config {
 	/* unified for both v4 and v6, port is still used extra though for convenience */
-    struct sockaddr  ip;
+    struct sockaddr_storage  ip;
 		uint16_t         port;
     uint8_t          loglevel;
 		uint16_t         logMask;
@@ -22,17 +22,17 @@ struct config {
     char             workdir[FILENAME_MAX];
     uint32_t         shm_size;
 		uint8_t          forceIpVersion;
-		struct sockaddr  bc_ip;
+		struct sockaddr_storage  bc_ip;
 		uint16_t         bc_port;
-		struct sockaddr  bc_broadcast;
+		struct sockaddr_storage  bc_broadcast;
 		uint16_t         bc_interval;
 		char             scheduler;
 		uint16_t         schedTimeSlice;
 };
 extern struct config * conf;
 
-void confDefaults(struct config *conf);
-int parseConfig (int conffd, struct config *conf);
-void writeConfig (int fd, struct config *conf);
-int initConf(char * conffilename, struct config *conf, char error[256]);
+void confDefaults();
+int parseConfig (int conffd);
+void writeConfig (int fd);
+int initConf(char * conffilename, char error[256]);
 #endif 

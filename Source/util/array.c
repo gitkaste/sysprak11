@@ -15,7 +15,7 @@ struct array *initArray(size_t itemsize, size_t initial_size, int shmid){
 		arr = shmat(shmid, NULL, 0);
 		if (arr == (void *) -1) return NULL;
 	}
-	arr->mem = arr + sizeof(struct array);
+	arr->mem = (char *)arr + sizeof(struct array);
 	arr->memsize = initial_size;
 	arr->itemsize = (int)itemsize;
 	arr->itemcount = 0;
@@ -47,9 +47,8 @@ struct array *addArrayItem (struct array *a, void *item){
 			}else{
 				//the allocation was moved to accomodate the new size
 				if (newmem != (char *)a){
-					fprintf(stderr, "newmem \n");
 					a = (struct array *)newmem;
-					a->mem = a + sizeof(struct array);
+					a->mem = (char *)a + sizeof(struct array);
 				}
 				a->memsize += a->itemsize * 10;
 			}
@@ -58,10 +57,7 @@ struct array *addArrayItem (struct array *a, void *item){
 			return NULL;
 		}
 	}	
-	struct flEntry *b = (struct flEntry *)a->mem+(a->itemcount * a->itemsize), *c = (struct flEntry *)item;
-	fprintf(stderr, "%p itemcount %lu: oldfilename %s size:%lu\n\r", a->mem, a->itemcount, c->filename, c->size);
-	memcpy((char *)a->mem + (a->itemcount * a->itemsize), item, a->itemsize); 
-	fprintf(stderr, "%p itemcount %lu: newfilename %ssize%lu:\n\r", a->mem, a->itemcount,b->filename, b->size);
+	memmove((char *)a->mem + (a->itemcount * a->itemsize), item, a->itemsize);
 	a->itemcount++;
 	return a;
 }
@@ -78,7 +74,7 @@ void *getArrayItem(struct array *a, unsigned long num) {
 	if (!a->itemcount || num > a->itemcount-1) {
 		return NULL;
 	}
-	return (char *)a->mem+ (num-1) * a->itemsize;
+	return (char *)a->mem + (num * a->itemsize);
 }
 
 void *iterateArray(struct array *a, unsigned long *i) {

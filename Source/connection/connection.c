@@ -132,7 +132,7 @@ int sendResult(int fd, struct actionParameters *ap,
 	logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG,
 		 "(sendResult) entering, %d entries to search.\n", sap->filelist->itemcount);
 	while (( fl = iterateArray(sap->filelist, &i))){
-		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "(sendResult) loop.\n");
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "comparing %s and %s\n", fl->filename, (char *) ap->comword.buf);
 		if ( !strcasestr(fl->filename, (char *)ap->comword.buf) ) continue;
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "sending %s\t%d\t%s\t%lu\n", 
 				putIP((struct sockaddr *)&fl->ip), getPort((struct sockaddr *) &fl->ip), 
@@ -150,10 +150,10 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 	struct array * results2;
 	char port[7];
 	char ipstr[56];
-	long unsigned int i=0;
-	/* get a line */
-
 	flushBuf(&ap->combuf);
+	/* I don't flush results on purpose  */
+	/* get a line */
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "before loop%lu\n\n", results->itemcount);
 	while (( res = getTokenFromStream( ap->comfd, &ap->combuf, &ap->comline, 
 					"\n", "\r\n",NULL ))){
 		/* get first word -> ip */
@@ -183,26 +183,23 @@ int recvResult(int fd, struct actionParameters *ap,struct array * results){
 		if ( (file.size = my_strtol((char *)ap->comline.buf)) < 0 || errno) return -3;
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "(recvResult) size: %d\n", file.size);
 
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "got this: %s\n%d\n%s\n%lu\n", putIP((struct sockaddr *)&file.ip), 
+					getPort((struct sockaddr *) &file.ip), file.filename, file.size);
+
 		results2 = addArrayItem(results, &file);
 		if (results2) results = results2;
 		else {
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "couldn't resize Resultsarray");
 			return -3;
 		}
-		i=0;
-//		while ( (f = iterateArray(results, &i)) ){
-//			logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "intermed %s: %d, %s %d\n", f->filename, 
-//						f->size, putIP((struct sockaddr *)&f->ip), 
-//						getPort((struct sockaddr *)&f->ip));
-//			counter++;
-//		}
+
+		file = *((struct flEntry *)getArrayItem(results, counter));
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, 
+				"Array Memory got this: %s\n%d\n%s\n%lu - entry no %d\n",
+			 	putIP((struct sockaddr *)&file.ip), getPort((struct sockaddr *) &file.ip), 
+				file.filename, file.size, results->itemcount);
+		counter++;
 	}
-	i=0;
-//	while ( (f = iterateArray(results, &i)) ){
-//		logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "after copying %s: %d, %s %d\n", f->filename, 
-//					f->size, putIP((struct sockaddr *)&f->ip), 
-//					getPort((struct sockaddr *)&f->ip));
-//	}	
 	return counter;
 }
 
@@ -212,20 +209,19 @@ int recvFileList(int sfd, struct actionParameters *ap,
 	struct flEntry file;
 	struct array *fl2; 
 
-	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "in recvFileList %p %p\n", ap, &ap->comip);
-	// BUGBUG This segfaults!
-	memmove(&file.ip,&ap->comip, sizeof(struct flEntry));
-
-	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "in loop%ul\n\n", sap->filelist->itemcount);
-
+	//memmove(&file.ip,&ap->comip, sizeof(struct sockaddr));
+	file.ip = ap->comip;
 	while (( res = getTokenFromStream( sfd, &ap->combuf, &ap->comline, "\n", 
 			"\r\n",NULL ))){
 		if (res ==  -1) return -1;
+
 		strcpy(file.filename, (char *)ap->comline.buf);
 		flushBuf(&ap->comline);
+
 		if (getTokenFromStream( sfd, &ap->combuf, &ap->comline, "\n", "\r\n",NULL ) == -1 )
 			return -1;
 		file.size = my_strtol((char *)ap->comline.buf);
+
 		if ( errno || file.size < 0 ) {
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "problem converting file size for %s - %s\n", file.filename, ap->comline.buf);
 			continue;
@@ -234,7 +230,6 @@ int recvFileList(int sfd, struct actionParameters *ap,
 
 		if ( (res = semWait(ap->semid, SEM_FILELIST)))
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "(recvfile) can't get semaphore, %d", res);
-		logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "in loop%ul\n\n", sap->filelist->itemcount);
 		fl2 = addArrayItem(sap->filelist, &file);
 		if ( (res = semSignal(ap->semid, SEM_FILELIST)))
 			logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "(recvfile) can't release semaphore, %d", res);
@@ -244,7 +239,6 @@ int recvFileList(int sfd, struct actionParameters *ap,
 			return -1;
 		}
 	}
-	logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "out of loop %ul\n\n", sap->filelist->itemcount);
 	
 	return 1;
 }
@@ -267,8 +261,10 @@ int handleUpload(int upfd, int confd, struct actionParameters *ap){
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Couldn't stat %s", ap->comline.buf);
 		return -2;
 	}
+	
+	logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "uploading %s", ap->comline.buf);
 	int ret = advFileCopy( upfd, filefd, statbuf.st_size, (char *)ap->comline.buf, ap->semid, 
-			ap->logfd, ap->sigfd, confd);
+			ap->logfd, ap->sigfd, confd );
 	/* readonly-> no EIO, signalfd-> no EINTR and EBADF unrealistic, necessary? */
 	if (-1 == close(filefd)) 
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Error closing file %s", 

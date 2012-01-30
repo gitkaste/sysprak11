@@ -26,16 +26,20 @@ int parseDirToFD(int fd, const char * basedir, const char * subdir){
 		if (entry->d_name[0] == '.') continue;
 
 		entrypath = path_join(fulldirname, entry->d_name);
+
 		if ( !(entrypath) ){
 			free(fulldirname);
 			return -1;
 		}
-	 if ( stat(entrypath,&statentry) == -1) {
+
+		if ( stat(entrypath,&statentry) == -1) {
 			free(fulldirname);
 			free(entrypath);
 			return -1;
-	 }
+		}
+
 		if (S_ISDIR(statentry.st_mode)){
+
 			char * nsubdir = path_join(subdir,entry->d_name);
 			if (!nsubdir) {
 				free(fulldirname);
@@ -48,7 +52,10 @@ int parseDirToFD(int fd, const char * basedir, const char * subdir){
 				free(entrypath);
 				return -1;
 			}
+			free(nsubdir);
+
 		} else if(S_ISREG(statentry.st_mode)){
+
 			char * subfile = path_join(subdir,entry->d_name);
 			if (!(subfile)) { 
 				free(fulldirname);
@@ -56,7 +63,10 @@ int parseDirToFD(int fd, const char * basedir, const char * subdir){
 				return -1;
 			}
 			if (-1 == writef(fd, "%s\n%d\n", subfile, statentry.st_size)) return -1;
+			free(subfile);
+
 		}
+		free(entrypath);
 		/* Ignores other st_modes by default */
 	}
 	free(fulldirname);
