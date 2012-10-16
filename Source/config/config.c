@@ -237,17 +237,17 @@ int initConf(char * conffilename, char error[256]){
 
 void writeConfig (int fd){
 	char ip[127];
-	/* There is no way to enter a flawed ip in our system */
+	/* You shall not pass - There is no way to enter a flawed IP in our system */
 	if (!getipstr((struct sockaddr *)&(conf->ip), ip, 127))
 		writef(fd, "problem converting ip conf->ip");
 	else
 		writef(fd, "Using config:\n\tip:\t\t\t%s\n\tport:\t\t\t%d\n",ip, conf->port);
-	writef(fd, "\tlogfile:\t\t%s\n\tloglevel:\t\t%d\n", conf->logfile, conf->loglevel);
-	writef(fd, "\tlogMask:\t\t%d\n", conf->logMask); 
-	writef(fd, "\tnetworkDumpLogFile:\t%s\n", conf->networkDumpLogFile);
-	writef(fd, "\tshare:\t\t\t%s\n\tshm_size:\t\t%d\n", conf->share, conf->shm_size);
-	writef(fd, "\tworkdir:\t\t%s\n", conf->workdir);
-	writef(fd, "\tforceIpVersion:\t\t%d\n", conf->forceIpVersion);
+    writef(fd, "\tlogfile:\t\t%s\n\tloglevel:\t\t%d\n", conf->logfile, conf->loglevel);
+    writef(fd, "\tlogMask:\t\t%d\n", conf->logMask); 
+    writef(fd, "\tnetworkDumpLogFile:\t%s\n", conf->networkDumpLogFile);
+    writef(fd, "\tshare:\t\t\t%s\n\tshm_size:\t\t%d\n", conf->share, conf->shm_size);
+    writef(fd, "\tworkdir:\t\t%s\n", conf->workdir);
+    writef(fd, "\tforceIpVersion:\t\t%d\n", conf->forceIpVersion);
 	if (!getipstr((struct sockaddr *)&(conf->bc_ip), ip, 127))
 		writef(fd, "problem converting ip conf->ip");
 	else
