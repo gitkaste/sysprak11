@@ -1,0 +1,21 @@
+Hello Fpriend, 
+
+This is an working, albeit not Bug-free implementation of a somewhat braindead
+filesharing protocol. It's client-server based, uses a somewhat nifty parser
+(probably the most useful component) and is able to transfer files. I haven't
+touched this for some time, but this should compile on any run of the mill
+unix with a somewhat recent gcc and gnu make, I believe.
+
+I did this for fun; my girlfriend took a course where this was a required group
+project, supposed to be done by four people.  Intrigued by the idea of writing
+a client-server app, I challenged them to a coding race and this is the result.
+The design was given (documented in the sheets saved alongside [in German]) and
+I would do it very differently in many ways, but it's implemented somewhat
+faithfully.
+
+My C and make skills have improved a great bit since then, so a rewrite would
+be in order, especially for the make system. Have a look at
+github.com/Skruppellos/sysprak for the project, that I handed in, when I took
+the class myself the next year. I believe that's a lot more advanced and you
+can see I had a very busy helper and a lot more freedom in the design this time
+(HINT: the syslog replacement and the botnet in there weren't in the spec).
