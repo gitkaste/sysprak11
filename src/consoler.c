@@ -28,12 +28,12 @@ int getchar_wrapper(struct buffer *stdinbuf, int semid);
 /* Idea from http://www.pronix.de */
 int raw (int fd, struct termios *new_io, struct termios *old_io) {
 
-	/*Sichern unseres Terminals*/
+	/*save terminal settings*/
 	if ((tcgetattr (fd, old_io)) == -1)
 		return -1;
 	memcpy(new_io, old_io, sizeof(struct termios));
 
-	/*Wir verändern jetzt die Flags für den raw-Modus*/
+	/*Change the flags for the raw mode*/
 	new_io->c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
 	new_io->c_oflag &= ~(OPOST);
 	new_io->c_lflag &= ~(ECHO|ICANON|IEXTEN|ISIG);
@@ -42,7 +42,7 @@ int raw (int fd, struct termios *new_io, struct termios *old_io) {
 	new_io->c_cc[VMIN]  = 1;
 	new_io->c_cc[VTIME] = 0;
 
-	/*Jetzt setzen wir den raw-Modus*/
+	/*activate raw mode*/
 	if ((tcsetattr (fd, TCSAFLUSH, new_io)) == -1)
 		return -1;
 	return 0;
@@ -190,8 +190,7 @@ int consoler(int infd, int outfd) {
 			if (gwret == 1) { /* New Line ! */
 				writef(STDOUT_FILENO, "\r>> ");
 				if(writeBuf(outfd, &stdinbuf) < 0) {
-					/* probably other side of pipe
-					 * was closed */
+					/* probably other side of pipe was closed */
 					ret = -1;
 					break;
 				}
@@ -212,7 +211,7 @@ int consoler(int infd, int outfd) {
 	close(infd);
 	close(outfd);
 	
-	/* Prompt vernichten */
+	/* delete Prompt*/
 	writef(STDOUT_FILENO, "\r%*s\r", stdinbuf.buflen + 3, "");
 	
 	/* Reset terminal to previous state */
