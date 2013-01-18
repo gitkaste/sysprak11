@@ -25,9 +25,8 @@ void flushBuf(struct buffer *buf);
 /* returns the memory */ 
 void freeBuf(struct buffer *buf);
 
-/* reads the maximum amount of previously unwritten bytes in buf from fd conserving 
- * had been written there before 
- * returns the number of bytes read */
+/* reads the maximum amount of previously unwritten bytes in buf from fd
+ * conserving existing content before - returns the number of bytes read */
 ssize_t readToBuf (int fd, struct buffer *buf);
 /* writes buf's content to the file descriptor fd, flushing buf afterwards 
  * returns the amount of bytes written */
@@ -45,32 +44,33 @@ char *vStringBuilder (const char *fmt, va_list ap);
 
 
 /***************** ARRAYS *******************/
-/* Unified structure for mem in shared mem segments as well as process local mem
- */
+/* Unified structure for mem in shared mem segments as well as process local 
+ * mem */
 struct array { 
 	size_t memsize; /* total memsize */ 
 	size_t itemsize;
 	unsigned long itemcount;
-	/* BUG, Direct quote from the shmat man page: 
-	* Be aware that the shared memory segment attached in this way may be attached
-	* at different addresses in different processes.  There‐ fore, any pointers
-	* maintained within the shared memory must be made relative (typically to the
-	* starting address of the segment), rather than absolute.
+
+  /* BUG, Direct quote from the shmat man page: 
+  * Be aware that the shared memory segment attached in this way may be
+  * attached at different addresses in different processes.  Therefore, any
+  * pointers maintained within the shared memory must be made relative
+  * (typically to the starting address of the segment), rather than absolute.
 	*/
 	void *mem;
 	int shmid; /* indicates the shared mem segment, -1 for normal arrays */ 
 };
 
-/* initialize the array, giving you a continous stretch of mem, with the describing struct in the beginning
- * initial_size is exclusive of the size for the struct
- * shmid is the shared mem id or -1 for malloc
- * returns NULL for failure */
+/* initialize the array, giving you a continous stretch of mem, with the
+ * describing struct in the beginning. Initial_size is exclusive of the size
+ * for the struct. shmid is the shared mem id or -1 for malloc returns NULL for
+ * failure */
 struct array *initArray(size_t itemsize, size_t initial_size, int shmid);
 /* free the mem associated with the array */
 void freeArray(struct array *a);
-/* add a new item to the array, possibly resizing in the process, 
- * returns the new (or old) array with the item attached
- * be sure to not overwrite the old variable with the return so you can free still free it */
+/* add a new item to the array, possibly resizing in the process, returns the
+ * new (or old) array with the item attached be sure to not overwrite the old
+ * variable with the return so you can free still free it */
 struct array *addArrayItem(struct array *a, void *item);
 /* deletes an item (doesn't resize) */
 int remArrayItem(struct array *a, unsigned long num);
@@ -85,9 +85,12 @@ struct processChild {
 	unsigned char type;
 	pid_t pid;
 };
-/* add a child process to cpa, possibly resizing it, returning the new cpa on success
- * Null of failure, the caller is responsible for saving cpa to be able to free it! */
-struct array *addChildProcess(struct array *cpa, unsigned char type, pid_t pid);
+
+/* add a child process to cpa, possibly resizing it, returning the new cpa on
+ * success,  Null on failure, the caller is responsible for saving cpa to be
+ * able to free it! */
+struct array *addChildProcess(struct array *cpa, unsigned char type, 
+    pid_t pid);
 /* deleted child with pid from cpa, returns 1 or -1 */
 int remChildProcess(struct array *cpa, pid_t pid);
 /* send signal to all members of cpa of type type, returns 1, -1 */
@@ -98,8 +101,8 @@ int sendSignalToChildren(struct array *cpa, unsigned char type, int signal);
 int shmCreate(int id);
 int shmDelete(int size);
 /* find the system max and min for the gross combined shared mem */
-int getShmMin();
-int getShmMax();
+unsigned long getShmMin();
+unsigned long getShmMax();
 #define IPC_KEY 39471
 
 
@@ -127,7 +130,7 @@ struct flEntry {
 	/* sockaddr contains port information as well */
 	char filename[FILENAME_MAX];
 	unsigned long size;
-	struct sockaddr_storage ip;
+	struct sockaddr ip;
 };
 
 /* set a file descriptor fd non blocking
@@ -168,7 +171,8 @@ int isDir(const char *dirname);
 int isDirWritable(const char * dirname);
 /* returns 1 if x is a power of 2 0 otherwise */
 int isPowerOfTwo (unsigned int x);
-/* returns a malloced string, containing a concatenation of basedir and subdir, 
+
+/* returns a malloced string, containing a concatenation of basedir and subdir,
  * or NULL on return */
 char *path_join(const char * basedir, const char * subdir);
 
