@@ -311,13 +311,15 @@ int main (int argc, char * argv[]){
 	pollfds[0].fd = cap.serverfd; /* communication with server */
 	pollfds[0].events = POLLIN;
 	pollfds[0].revents = 0;
-	pollfds[1].fd = cap.infd; /* communication with user */
 
+	pollfds[1].fd = cap.infd; /* communication with user */
 	pollfds[1].events = POLLIN;
 	pollfds[1].revents = 0;
+
 	pollfds[2].fd = passsock; /* communication with other client */
 	pollfds[2].events = POLLIN;
 	pollfds[2].revents = 0;
+
 	pollfds[3].fd = ap.sigfd; /* signal handling */
 	pollfds[3].events = POLLIN;
 	pollfds[3].revents = 0;
@@ -383,24 +385,28 @@ int main (int argc, char * argv[]){
 			}
 		} else if(pollfds[2].revents & POLLIN) { /* Client connection incoming */
 			int uploadfd = accept(passsock, (struct sockaddr *) &peer_addr, &socklen);
-			if (!uploadfd) return -1;
-			logmsg(ap.semid, ap.logfd, LOGLEVEL_WARN, "%d %d\n", uploadfd, passsock);
-			switch(uploadpid = fork()){
-			case -1:
-				close(uploadfd);
-				perror("(client main) Problem forking when accepting client conn");
-				goto error;
-			case 0:
-				close(passsock);
-				huRet =  handleUpload(uploadfd, cap.outfd, &ap);
-				huRet = (huRet == -2)? EXIT_SUCCESS: EXIT_FAILURE;
-				close(uploadfd);
-				_exit(huRet);
-			default:
-				/* u for upload */
-				addChildProcess(cap.cpa, 'u', cap.conpid);
-				close( uploadfd );
-			}
+			if (!uploadfd) 
+        logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, 
+            "(client main) accepting client connection failed\n");
+      else { 
+        logmsg(ap.semid, ap.logfd, LOGLEVEL_WARN, "%d %d\n", uploadfd, passsock);
+        switch(uploadpid = fork()){
+        case -1:
+          close(uploadfd);
+          perror("(client main) Problem forking when accepting client conn");
+          goto error;
+        case 0:
+          close(passsock);
+          huRet =  handleUpload(uploadfd, cap.outfd, &ap);
+          huRet = (huRet == -2)? EXIT_SUCCESS: EXIT_FAILURE;
+          close(uploadfd);
+          _exit(huRet);
+        default:
+          /* u for upload */
+          addChildProcess(cap.cpa, 'u', uploadpid);
+          close( uploadfd );
+        }
+      }
 		} else if(pollfds[3].revents & POLLIN) { /* incoming signal */
 			SRret = read(ap.sigfd, &fdsi, sizeof(struct signalfd_siginfo));
 			if (SRret != sizeof(struct signalfd_siginfo)){

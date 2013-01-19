@@ -1,5 +1,8 @@
 #include <errno.h>
 #include <error.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include "stdin_protocol.h"
@@ -94,11 +97,72 @@ int stdin_helpAction(struct actionParameters *ap,
 
 int stdin_downloadAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap) {
-  (void) aap;
-	/* i bail on anything but 'download <nr> :whitespace:', too pedantic? */
+  pid_t dlpid;
+  int sockfd;
+	/*BUGBUG i bail on anything but 'download <nr> :whitespace:', too pedantic? */
 	int nr = my_strtol( (char *) ap->comline.buf);
-	logmsg(ap->semid,ap->logfd,LOGLEVEL_VERBOSE,"Starting download of %d\n",nr);
-	if (errno) return -1;
-	return nr;
-//	advFileCopy(nr);
+  struct flEntry *fl;
+  switch ((dlpid = fork())){
+  case -1:
+    logmsg(ap->semid,ap->logfd,LOGLEVEL_FATAL,
+        "(downloadAction)Forking failed when downloading\n");
+    return -1;
+  case 0:
+    if (!(fl = getArrayItem(aap->cap->results, nr))){
+      logmsg(ap->semid,ap->logfd,LOGLEVEL_VERBOSE,
+        "(downloadAction)Wrong download number %d\n", nr);
+      consolemsg(ap->semid,aap->cap->outfd, "<%d> doesn't exist\n" , nr);
+      _exit(0);
+    }
+
+    char * filename = path_join(conf->workdir, fl->filename);
+    if (!filename){
+      logmsg(ap->semid,ap->logfd,LOGLEVEL_FATAL,"(downloadAction)out of mem in\n");
+      _exit(0);
+    }
+
+    int filefd = open( filename, O_CREAT|O_RDWR, S_IRUSR|S_IWUSR|S_IRGRP );
+    if ( filefd == -1 ) {
+      logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Can't open %s", filename);
+      free(filename);
+      _exit(0);
+    }
+
+		if ( -1 == (sockfd = connectSocket(&fl->ip,
+      getPort((struct sockaddr *)&fl->ip)))){
+      logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
+        "(downloadAction) can't connect to %s %d\n", putIP(&fl->ip),getPort(&fl->ip));
+      logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
+        "(downloadAction) can't connect to %s %d\n", putIP(&fl->ip),getPort(&fl->ip));
+      if(close(filefd) < 0)
+        logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL,
+          "(downloadAction) can't close opened file %s\n", filename);
+      free(filename);
+      _exit(0);
+    }
+
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGINT);
+    sigaddset(&mask, SIGQUIT);
+    sigaddset(&mask, SIGUSR1);
+    if ( (ap->sigfd = getSigfd(&mask)) < 0 )
+      logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "can't adjust signal mask");
+
+    logmsg(ap->semid,ap->logfd,LOGLEVEL_VERBOSE,"Starting download of %d\n",nr);
+    int ret = advFileCopy( filefd, sockfd, fl->size, filename, ap->semid, 
+        ap->logfd, ap->sigfd, aap->cap->outfd );
+  	if (close(filefd)<0)
+      logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "Error closing file %s", 
+          filename);
+
+    if(close(sockfd) < 0)
+      logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN,
+        "(downloadAction) can't close socket\n");
+    free(filename);
+    _exit(ret);
+  default:
+    addChildProcess(aap->cap->cpa, 'd', dlpid);
+    return 1;
+  }
 }

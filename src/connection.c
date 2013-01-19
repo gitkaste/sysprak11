@@ -266,29 +266,42 @@ int handleUpload(int upfd, int confd, struct actionParameters *ap){
 	if (res == -1){
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, 
 				"Error getting Filenname to upload");
-		return -2;
+		return -3;
 	}
 	int filefd = open( (char *) ap->comline.buf, O_RDONLY);
 	if ( filefd == -1 ) {
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Can't open %s", 
         ap->comline.buf);
-		return -2;
+		return -3;
 	}
 	struct stat statbuf;
 	if ( !fstat(filefd, &statbuf)){
 		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Couldn't stat %s", 
         ap->comline.buf);
-		return -2;
+		return -3;
 	}
-	
+ 	
+	sigset_t mask;
+	sigemptyset(&mask);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGQUIT);
+  sigaddset(&mask, SIGUSR1);
+  if ( (ap->sigfd = getSigfd(&mask)) < 0 ){
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "can't adjust signal mask");
+    close(filefd);
+     return -3; 
+  }
 	logmsg(ap->semid, ap->logfd, LOGLEVEL_DEBUG, "uploading %s", ap->comline.buf);
 	int ret = advFileCopy( upfd, filefd, statbuf.st_size, (char *)ap->comline.buf,
       ap->semid, ap->logfd, ap->sigfd, confd );
 	/* readonly-> no EIO, signalfd-> no EINTR and EBADF unrealistic, necessary? */
-	if (-1 == close(filefd)) 
-		logmsg(ap->semid, ap->logfd, LOGLEVEL_FATAL, "Error closing file %s", 
+	if (-1 == close(filefd)) {
+		logmsg(ap->semid, ap->logfd, LOGLEVEL_WARN, "Error closing file %s", 
 				ap->comline.buf);
-	return ret;
+    ret = -1;
+  }
+  /* -2 always means success -3 failure */
+	return ret-2;
 }
 
 #define EXIT_NO (EXIT_FAILURE * 2+3)
