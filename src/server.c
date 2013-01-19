@@ -21,7 +21,7 @@
 #include "connection.h"
 #include "signalfd.h"
 
-int initsap (struct serverActionParameters *sap, char error[256]){
+int initsap (struct serverActionParameters *sap){
 	int size = conf->shm_size;
 	if ( (sap->shmid_filelist = shmCreate(size)) == -1)
 			return -1;
@@ -161,7 +161,7 @@ int main (int argc, char * argv[]){
 	}
 	initializeServerProtocol(&ap); 
 
-	if (initsap(&sap, error) == -1){
+	if (initsap(&sap) == -1){
 		freeap(&ap);
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "%s.\n", error);
 		exit(EXIT_FAILURE);

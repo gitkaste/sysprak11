@@ -124,8 +124,10 @@ int vaToken(struct buffer *buffer_temp, int *tokenstart, int *tokenlength, int *
 int extractToken(struct buffer *buffer_temp, struct buffer *token,
 		int tokenstart, int tokenlength, int fulllength){
 	/* errors that may occur */
-	if(tokenlength > token->bufmax || fulllength > buffer_temp->buflen || 
-			tokenlength + tokenstart > fulllength || tokenstart > buffer_temp->buflen){
+	if ((unsigned int) tokenlength >  token->bufmax || 
+      (unsigned int) fulllength > buffer_temp->buflen || 
+      tokenlength + tokenstart > fulllength || 
+      (unsigned int) tokenstart > buffer_temp->buflen){
 		return -1;
 	}
 	/* copy the token from *buffer_temp to *token */
