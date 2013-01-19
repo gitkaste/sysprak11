@@ -6,3 +6,4 @@ More Documentation
 Signalfd im Client einrichten und pollen
 Was ist der Unterschied zwischen ap->comfd und cap->serverfd?
 Wie funktoniert der Rückgabe wert bei Actions, bzw. proper shutdown?
+writebuf returns -2 but it is not checked for anywhere

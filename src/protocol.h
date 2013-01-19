@@ -62,7 +62,7 @@ struct actionParameters { /* elwms */
 	/* This is the protocol used on comfd and its buffers */
 	struct protocol *prot;
 	/* ip of communication partner ('peer') */
-	struct sockaddr_storage comip;
+	struct sockaddr comip;
 	uint16_t comport;
 };
 

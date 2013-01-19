@@ -197,7 +197,7 @@ int main (int argc, char * argv[]){
 	aap.cap = &cap;
 	struct buffer msg;
 	char error[256];
-	uint16_t passport;
+	uint16_t passport = 0;
 	int opt, passsock, s;
 #define EXIT_NO (EXIT_FAILURE * 2+3)
 	int huRet, pSRret, SRret, shellReturn=EXIT_NO, gtfsRet, rtbRet;
@@ -266,7 +266,7 @@ int main (int argc, char * argv[]){
 	}
 
 	/* connecting to server. */
-	if ( ( ap.comfd = cap.serverfd = connectSocket((struct sockaddr *)&conf->ip, conf->port))  == -1 ){
+	if ((ap.comfd = cap.serverfd = connectSocket((struct sockaddr *)&conf->ip, conf->port))  == -1 ){
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, "error connecting to server\n");
 		shellReturn = EXIT_FAILURE;
 		goto error;
@@ -280,7 +280,6 @@ int main (int argc, char * argv[]){
 	ap.usedres |= APRES_COMFD;
 
 	/* create a passive port to accept client connections. */
-	passport =  0;
 	if ( ( passsock = createPassiveSocket(&passport)) == -1){
 		logmsg(ap.semid, ap.logfd, LOGLEVEL_FATAL, 
 				"Error setting up network connection\n");
@@ -443,7 +442,7 @@ int main (int argc, char * argv[]){
 
 error:
 	freeBuf(&msg);
-	close(passport);
+	if (passport) close(passport);
 	freeap(&ap);
 	freecap(&cap); /* closes all open file handles with the consoler */
 	if ( waitpid(cap.conpid, NULL, 0) < 0 ||  waitpid(ap.logpid, NULL, 0) < 0) {

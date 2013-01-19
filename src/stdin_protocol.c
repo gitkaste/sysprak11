@@ -40,6 +40,7 @@ int passOnAction(struct actionParameters *ap,
 
 int stdin_showAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap) {
+  (void) ap;
 	return sendSignalToChildren( aap->cap->cpa, 'd', SIGUSR1 );
 }
 
@@ -93,6 +94,7 @@ int stdin_helpAction(struct actionParameters *ap,
 
 int stdin_downloadAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap) {
+  (void) aap;
 	/* i bail on anything but 'download <nr> :whitespace:', too pedantic? */
 	int nr = my_strtol( (char *) ap->comline.buf);
 	logmsg(ap->semid,ap->logfd,LOGLEVEL_VERBOSE,"Starting download of %d\n",nr);

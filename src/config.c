@@ -89,8 +89,9 @@ int parseConfig (int conffd){
 				strncpy(ipstr, (char *) value.buf, 1024);
 			/*** Port ***/
 			} else if (!strncmp((char *)key.buf, "port", key.buflen)) {
-				conf->port = (uint16_t) my_strtol((char *)value.buf);
-				if (errno || conf->port > 645536){
+        unsigned long port = my_strtol((char *)value.buf);
+				conf->port = (uint16_t)port;
+				if (errno || port > 645536){
 					fprintf(stderr,"(config parser) port isn't a valid port number or trailing chars\n");
 					retval = -1;
 					break;
@@ -145,8 +146,9 @@ int parseConfig (int conffd){
 				strncpy(bc_ipstr, (char *) value.buf, 1024);
 			/*** bc_port ***/
 			} else if (!strncmp((char *)key.buf, "bc_port", key.buflen)){
-				conf->bc_port = (uint16_t) my_strtol((char *)value.buf);
-				if (errno || conf->bc_port > 65536) {
+        unsigned long port = my_strtol((char *)value.buf);
+				conf->bc_port = (uint16_t)port;
+				if (errno || port > 645536){
 					fprintf(stderr,"(config parser) bc_port isn't valid\n");
 					retval = -1;
 				}
@@ -224,7 +226,7 @@ int initConf(char * conffilename, char error[256]){
 		sperror("Error opening config file:\n", error, 256);
 		return -1;
 	}
-	confDefaults(conf);
+	confDefaults();
 	if ( parseConfig(conffd) == -1 ){
 		close(conffd);
 		strncpy(error, "Your config has errors, please fix them", 256);

@@ -34,7 +34,7 @@ int reply(int comfd, int logfd, int semid, int code, const char *msg) {
  *    -1: Fatal error. (abort and exit)
  *     0: ap->comfd hung up / closed from the other side (clean exit)
  *    +x: everything okay, continue
- * Note: Return Values blend with the return values of actions (see note below).
+ * Note: Return Values blend with the return value of actions (see note below).
  *       Therefore it's okay to return the value returned by processCommand.
  * Note2: gtfsret can never be < 0 ...
  */

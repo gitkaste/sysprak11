@@ -62,6 +62,7 @@ int initializeServerProtocol(struct actionParameters *ap) {
 
 int unknownCommandAction(struct actionParameters *ap,
 		union additionalActionParameters *aap) {
+  (void) aap;
 	char *msg;
 	int ret = 1;
 	if (strcasecmp((char *)ap->comline.buf, "")){
@@ -78,6 +79,7 @@ int unknownCommandAction(struct actionParameters *ap,
 
 int browseAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap) {
+  (void) aap;
 	unsigned long i =0;
 	struct flEntry *f; 
 
@@ -94,6 +96,7 @@ int browseAction(struct actionParameters *ap,
 
 int statusAction(struct actionParameters *ap,
 		union additionalActionParameters *aap) {
+  (void) aap;
 	char *msg;
 	msg = stringBuilder("WTF %s\n", ap->comword.buf);
 	reply(ap->comfd, ap->logfd, ap->semid, REP_WARN, msg);
@@ -103,6 +106,7 @@ int statusAction(struct actionParameters *ap,
 
 int quitAction(struct actionParameters *ap,
 		union additionalActionParameters *aap) {
+  (void) aap;
 	reply(ap->comfd, ap->logfd, ap->semid, REP_TEXT,
 		"Closing connection. Have a nice day ;)\n"); 
 	/* Returning 0: main-loop shall break and shouldn't accept any further commands */
@@ -116,6 +120,7 @@ int searchAction(struct actionParameters *ap,
 	pid_t pid;
 	int sockfd = 0;
 
+  (void) aap;
 	if (iswhitespace((char *)ap->comline.buf)) return 1;
 	switch (pid = fork()) {
 
@@ -158,6 +163,7 @@ int searchAction(struct actionParameters *ap,
 
 int helpAction(struct actionParameters *ap,
 		union additionalActionParameters *aap) {
+  (void) aap;
 	char * msg;
 	struct protocol * p = ap->prot;
 	for (int i =0; i < p->actionCount; i++){
@@ -212,6 +218,7 @@ int filelistAction(struct actionParameters *ap,
 
 int portAction(struct actionParameters *ap, 
 		union additionalActionParameters *aap){
+  (void) aap;
 	ap->comport = my_strtol( (char *) ap->comline.buf);
 	return (errno) ? -1 : 1;
 }

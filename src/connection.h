@@ -1,5 +1,5 @@
 #include <inttypes.h>
-#include <protocol.h>
+#include "protocol.h"
 
 /* GLOBAL! Variable so you can set a loglevel over which you don't log */
 int createPassiveSocket(uint16_t *port);
